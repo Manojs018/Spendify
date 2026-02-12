@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Spendify</title>
+    <meta name="description" content="Your personal finance dashboard">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/global.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+</head>
+
+<body class="dashboard-page">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <div class="logo-icon">🟦</div>
+                <h1>Spendify</h1>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item active" data-page="dashboard">
+                <span class="nav-icon">📊</span>
+                <span class="nav-text">Dashboard</span>
+            </a>
+            <a href="#" class="nav-item" data-page="transactions">
+                <span class="nav-icon">💸</span>
+                <span class="nav-text">Transactions</span>
+            </a>
+            <a href="#" class="nav-item" data-page="cards">
+                <span class="nav-icon">💳</span>
+                <span class="nav-text">Cards</span>
+            </a>
+            <a href="#" class="nav-item" data-page="analytics">
+                <span class="nav-icon">📈</span>
+                <span class="nav-text">Analytics</span>
+            </a>
+            <a href="#" class="nav-item" data-page="transfer">
+                <span class="nav-icon">🔄</span>
+                <span class="nav-text">Send Money</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <button class="btn btn-secondary btn-block" id="logoutBtn">
+                <span>🚪</span>
+                <span>Logout</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="menu-toggle" id="menuToggle">☰</button>
+                <h2 id="pageTitle">Dashboard</h2>
+            </div>
+            <div class="header-right">
+                <div class="user-info">
+                    <div class="user-avatar">👤</div>
+                    <div class="user-details">
+                        <p class="user-name" id="userName">Loading...</p>
+                        <p class="user-email" id="userEmail">Loading...</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dashboard Content -->
+        <div class="content" id="dashboardContent">
+            <!-- Stats Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon balance">💰</div>
+                    <div class="stat-info">
+                        <p class="stat-label">Total Balance</p>
+                        <h3 class="stat-value" id="totalBalance">$0.00</h3>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon income">📈</div>
+                    <div class="stat-info">
+                        <p class="stat-label">Monthly Income</p>
+                        <h3 class="stat-value text-success" id="monthlyIncome">$0.00</h3>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon expense">📉</div>
+                    <div class="stat-info">
+                        <p class="stat-label">Monthly Expense</p>
+                        <h3 class="stat-value text-danger" id="monthlyExpense">$0.00</h3>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon growth">📊</div>
+                    <div class="stat-info">
+                        <p class="stat-label">This Month</p>
+                        <h3 class="stat-value" id="monthlyBalance">$0.00</h3>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Grid -->
+            <div class="dashboard-grid">
+                <!-- Left Column -->
+                <div class="dashboard-left">
+                    <!-- Quick Actions -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Quick Actions</h3>
+                        </div>
+                        <div class="quick-actions">
+                            <button class="action-btn" id="addIncomeBtn">
+                                <span class="action-icon">💵</span>
+                                <span>Add Income</span>
+                            </button>
+                            <button class="action-btn" id="addExpenseBtn">
+                                <span class="action-icon">💸</span>
+                                <span>Add Expense</span>
+                            </button>
+                            <button class="action-btn" id="addCardBtn">
+                                <span class="action-icon">💳</span>
+                                <span>Add Card</span>
+                            </button>
+                            <button class="action-btn" id="sendMoneyBtn">
+                                <span class="action-icon">🔄</span>
+                                <span>Send Money</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Recent Transactions -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Recent Transactions</h3>
+                            <button class="btn btn-sm btn-secondary" id="viewAllTransactions">View All</button>
+                        </div>
+                        <div class="transactions-list" id="recentTransactions">
+                            <div class="loading-state">
+                                <div class="spinner"></div>
+                                <p>Loading transactions...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Category Breakdown -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Top Categories</h3>
+                        </div>
+                        <div class="categories-list" id="topCategories">
+                            <div class="loading-state">
+                                <div class="spinner"></div>
+                                <p>Loading categories...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column -->
+                <div class="dashboard-right">
+                    <!-- My Cards -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">My Cards</h3>
+                            <button class="btn btn-sm btn-secondary" id="manageCards">Manage</button>
+                        </div>
+                        <div class="cards-container" id="myCards">
+                            <div class="loading-state">
+                                <div class="spinner"></div>
+                                <p>Loading cards...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Income vs Expense Chart -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Income vs Expense</h3>
+                        </div>
+                        <div class="chart-container">
+                            <div class="pie-chart" id="incomeExpenseChart">
+                                <div class="chart-legend">
+                                    <div class="legend-item">
+                                        <span class="legend-color income"></span>
+                                        <span class="legend-label">Income</span>
+                                        <span class="legend-value" id="chartIncome">$0</span>
+                                    </div>
+                                    <div class="legend-item">
+                                        <span class="legend-color expense"></span>
+                                        <span class="legend-label">Expense</span>
+                                        <span class="legend-value" id="chartExpense">$0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transactions Content (Hidden by default) -->
+        <div class="content hidden" id="transactionsContent">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">All Transactions</h3>
+                    <button class="btn btn-primary" id="addTransactionBtn">+ Add Transaction</button>
+                </div>
+
+                <!-- Filters -->
+                <div class="filters">
+                    <select id="filterType" class="filter-select">
+                        <option value="">All Types</option>
+                        <option value="income">Income</option>
+                        <option value="expense">Expense</option>
+                    </select>
+                    <select id="filterCategory" class="filter-select">
+                        <option value="">All Categories</option>
+                    </select>
+                    <input type="month" id="filterMonth" class="filter-input">
+                    <input type="search" id="searchTransactions" class="filter-input" placeholder="Search...">
+                </div>
+
+                <div class="transactions-table" id="allTransactions">
+                    <div class="loading-state">
+                        <div class="spinner"></div>
+                        <p>Loading transactions...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cards Content (Hidden by default) -->
+        <div class="content hidden" id="cardsContent">
+            <div class="cards-grid" id="allCards">
+                <div class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Loading cards...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics Content (Hidden by default) -->
+        <div class="content hidden" id="analyticsContent">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Spending Analytics</h3>
+                </div>
+                <div id="analyticsCharts">
+                    <div class="loading-state">
+                        <div class="spinner"></div>
+                        <p>Loading analytics...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transfer Content (Hidden by default) -->
+        <div class="content hidden" id="transferContent">
+            <div class="transfer-container">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Send Money</h3>
+                    </div>
+                    <form id="sendMoneyForm">
+                        <div class="form-group">
+                            <label for="recipientEmail">Recipient Email</label>
+                            <input type="email" id="recipientEmail" placeholder="Enter recipient's email" required>
+                            <div id="userSuggestions" class="suggestions"></div>
+                        </div>
+                        <div class="form-group">
+                            <label for="transferAmount">Amount</label>
+                            <input type="number" id="transferAmount" placeholder="0.00" step="0.01" min="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="transferDescription">Description (Optional)</label>
+                            <input type="text" id="transferDescription" placeholder="What's this for?">
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <span>Send Money</span>
+                            <span class="btn-loader" style="display: none;">
+                                <span class="spinner"></span>
+                            </span>
+                        </button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Transfer History</h3>
+                    </div>
+                    <div id="transferHistory">
+                        <div class="loading-state">
+                            <div class="spinner"></div>
+                            <p>Loading history...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Add/Edit Transaction Modal -->
+    <div class="modal" id="transactionModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="transactionModalTitle">Add Transaction</h3>
+                <button class="modal-close" id="closeTransactionModal">&times;</button>
+            </div>
+            <form id="transactionForm">
+                <input type="hidden" id="transactionId">
+                <div class="form-group">
+                    <label for="transactionType">Type</label>
+                    <select id="transactionType" required>
+                        <option value="income">Income</option>
+                        <option value="expense">Expense</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="transactionAmount">Amount</label>
+                    <input type="number" id="transactionAmount" placeholder="0.00" step="0.01" min="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="transactionCategory">Category</label>
+                    <select id="transactionCategory" required>
+                        <option value="">Select category</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="transactionDescription">Description</label>
+                    <input type="text" id="transactionDescription" placeholder="Enter description">
+                </div>
+                <div class="form-group">
+                    <label for="transactionDate">Date</label>
+                    <input type="date" id="transactionDate" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelTransaction">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <span>Save Transaction</span>
+                        <span class="btn-loader" style="display: none;">
+                            <span class="spinner"></span>
+                        </span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Card Modal -->
+    <div class="modal" id="cardModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New Card</h3>
+                <button class="modal-close" id="closeCardModal">&times;</button>
+            </div>
+            <form id="cardForm">
+                <div class="form-group">
+                    <label for="cardNumber">Card Number</label>
+                    <input type="text" id="cardNumber" placeholder="1234 5678 9012 3456" maxlength="19" required>
+                </div>
+                <div class="form-group">
+                    <label for="cardHolderName">Card Holder Name</label>
+                    <input type="text" id="cardHolderName" placeholder="JOHN DOE" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="cardExpiry">Expiry (MM/YY)</label>
+                        <input type="text" id="cardExpiry" placeholder="12/26" maxlength="5" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="cardCVV">CVV</label>
+                        <input type="text" id="cardCVV" placeholder="123" maxlength="4" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="cardBalance">Initial Balance</label>
+                    <input type="number" id="cardBalance" placeholder="0.00" step="0.01" min="0" value="0">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelCard">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <span>Add Card</span>
+                        <span class="btn-loader" style="display: none;">
+                            <span class="spinner"></span>
+                        </span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Scripts -->
+    <script src="js/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/dashboard.js"></script>
+</body>
+
+</html>

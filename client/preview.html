@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spendify - Project Preview</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #151b3d 100%);
+            color: #ffffff;
+            padding: 40px 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 48px;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #00d4ff 0%, #0099ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .tagline {
+            text-align: center;
+            font-size: 24px;
+            color: #a0aec0;
+            margin-bottom: 50px;
+        }
+
+        .preview-section {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+
+        .preview-section h2 {
+            color: #00d4ff;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .preview-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            text-decoration: none;
+            color: #ffffff;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .preview-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateY(-5px);
+            box-shadow: 0 0 30px rgba(0, 212, 255, 0.3);
+            border-color: #00d4ff;
+        }
+
+        .preview-btn .icon {
+            font-size: 48px;
+        }
+
+        .preview-btn .title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .preview-btn .desc {
+            font-size: 14px;
+            color: #a0aec0;
+            text-align: center;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .feature-card {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .feature-card .emoji {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .color-palette {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .color-box {
+            flex: 1;
+            min-width: 150px;
+            height: 100px;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.1) 0%, rgba(0, 153, 255, 0.1) 100%);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 16px;
+            padding: 25px;
+            text-align: center;
+        }
+
+        .stat-card .number {
+            font-size: 36px;
+            font-weight: 700;
+            color: #00d4ff;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .label {
+            font-size: 14px;
+            color: #a0aec0;
+        }
+
+        .tech-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .tech-badge {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            color: #00ff88;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .instructions {
+            background: rgba(255, 170, 0, 0.1);
+            border: 1px solid rgba(255, 170, 0, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .instructions h3 {
+            color: #ffaa00;
+            margin-bottom: 15px;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+        }
+
+        .instructions li {
+            margin-bottom: 10px;
+            color: #ffffff;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: #a0aec0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🟦 Spendify</h1>
+        <p class="tagline">Smart Spending. Clear Insights.</p>
+
+        <!-- Quick Access -->
+        <div class="preview-section">
+            <h2>🚀 Quick Access</h2>
+            <div class="button-grid">
+                <a href="index.html" class="preview-btn">
+                    <span class="icon">🔐</span>
+                    <span class="title">Login Page</span>
+                    <span class="desc">View the authentication interface</span>
+                </a>
+                <a href="dashboard.html" class="preview-btn"
+                    onclick="alert('Please login first via index.html'); return false;">
+                    <span class="icon">📊</span>
+                    <span class="title">Dashboard</span>
+                    <span class="desc">Main application dashboard</span>
+                </a>
+                <a href="../README.md" class="preview-btn">
+                    <span class="icon">📚</span>
+                    <span class="title">Documentation</span>
+                    <span class="desc">Read the full documentation</span>
+                </a>
+                <a href="../VISUAL_PREVIEW.md" class="preview-btn">
+                    <span class="icon">🎨</span>
+                    <span class="title">Visual Guide</span>
+                    <span class="desc">Detailed visual preview</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Project Stats -->
+        <div class="preview-section">
+            <h2>📊 Project Statistics</h2>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="number">40</div>
+                    <div class="label">Total Files</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number">21</div>
+                    <div class="label">API Endpoints</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number">5,000+</div>
+                    <div class="label">Lines of Code</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number">100%</div>
+                    <div class="label">Complete</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features -->
+        <div class="preview-section">
+            <h2>✨ Key Features</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="emoji">🔐</div>
+                    <div>JWT Auth</div>
+                </div>
+                <div class="feature-card">
+                    <div class="emoji">💸</div>
+                    <div>Transactions</div>
+                </div>
+                <div class="feature-card">
+                    <div class="emoji">💳</div>
+                    <div>Multi-Cards</div>
+                </div>
+                <div class="feature-card">
+                    <div class="emoji">📊</div>
+                    <div>Analytics</div>
+                </div>
+                <div class="feature-card">
+                    <div class="emoji">🔄</div>
+                    <div>Transfers</div>
+                </div>
+                <div class="feature-card">
+                    <div class="emoji">🎨</div>
+                    <div>Premium UI</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Color Palette -->
+        <div class="preview-section">
+            <h2>🎨 Color Palette</h2>
+            <div class="color-palette">
+                <div class="color-box" style="background: #0a0e27; color: #ffffff;">
+                    <div>#0a0e27</div>
+                    <div>Background</div>
+                </div>
+                <div class="color-box" style="background: #00d4ff; color: #0a0e27;">
+                    <div>#00d4ff</div>
+                    <div>Accent</div>
+                </div>
+                <div class="color-box" style="background: #00ff88; color: #0a0e27;">
+                    <div>#00ff88</div>
+                    <div>Success</div>
+                </div>
+                <div class="color-box" style="background: #ff3366; color: #ffffff;">
+                    <div>#ff3366</div>
+                    <div>Danger</div>
+                </div>
+                <div class="color-box" style="background: #ffaa00; color: #0a0e27;">
+                    <div>#ffaa00</div>
+                    <div>Warning</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tech Stack -->
+        <div class="preview-section">
+            <h2>🛠️ Tech Stack</h2>
+            <div class="tech-stack">
+                <span class="tech-badge">Node.js</span>
+                <span class="tech-badge">Express.js</span>
+                <span class="tech-badge">MongoDB</span>
+                <span class="tech-badge">Mongoose</span>
+                <span class="tech-badge">JWT</span>
+                <span class="tech-badge">Bcrypt</span>
+                <span class="tech-badge">HTML5</span>
+                <span class="tech-badge">CSS3</span>
+                <span class="tech-badge">JavaScript ES6+</span>
+                <span class="tech-badge">Glassmorphism</span>
+            </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="preview-section">
+            <div class="instructions">
+                <h3>🚀 How to Run the Project</h3>
+                <ol>
+                    <li><strong>Install Dependencies:</strong> Run <code>install.bat</code> or <code>npm install</code>
+                    </li>
+                    <li><strong>Start MongoDB:</strong> Open terminal and run <code>mongod</code></li>
+                    <li><strong>Start Backend:</strong> Run <code>npm run dev</code> (server starts on port 5000)</li>
+                    <li><strong>Open Frontend:</strong> Click "Login Page" button above or open <code>index.html</code>
+                    </li>
+                    <li><strong>Create Account:</strong> Register with your details</li>
+                    <li><strong>Explore:</strong> Add transactions, cards, and test all features!</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p><strong>🟦 Spendify</strong> - Production-Ready Personal Finance Platform</p>
+            <p>Built with ❤️ using Node.js, Express, MongoDB, and Vanilla JavaScript</p>
+            <p style="margin-top: 10px; font-size: 14px;">Version 1.0.0 | February 2026</p>
+        </div>
+    </div>
+</body>
+
+</html>
