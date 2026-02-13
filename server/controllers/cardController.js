@@ -6,7 +6,7 @@ import Transaction from '../models/Transaction.js';
 // @access  Private
 export const getCards = async (req, res) => {
     try {
-        const cards = await Card.find({ userId: req.user.id, isActive: true }).select('-cvv');
+        const cards = await Card.find({ userId: req.user.id, isActive: true });
 
         res.status(200).json({
             success: true,
@@ -26,7 +26,7 @@ export const getCards = async (req, res) => {
 // @access  Private
 export const getCard = async (req, res) => {
     try {
-        const card = await Card.findById(req.params.id).select('-cvv');
+        const card = await Card.findById(req.params.id);
 
         if (!card) {
             return res.status(404).json({
@@ -60,36 +60,53 @@ export const getCard = async (req, res) => {
 // @access  Private
 export const createCard = async (req, res) => {
     try {
-        const { cardNumber, cardHolderName, expiry, cvv, balance, cardType } = req.body;
+        const { cardNumber, cardHolderName, expiry, cvv, balance } = req.body;
 
-        // Detect card type from card number if not provided
-        let detectedCardType = cardType || 'other';
-        if (!cardType && cardNumber) {
-            const firstDigit = cardNumber.charAt(0);
-            if (firstDigit === '4') detectedCardType = 'visa';
-            else if (firstDigit === '5') detectedCardType = 'mastercard';
-            else if (firstDigit === '3') detectedCardType = 'amex';
-            else if (firstDigit === '6') detectedCardType = 'discover';
+        // Validate required fields
+        if (!cardNumber || !cardHolderName || !expiry) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide card number, holder name, and expiry date',
+            });
         }
 
-        const card = await Card.create({
+        // Create new card instance
+        const card = new Card({
             userId: req.user.id,
-            cardNumber,
             cardHolderName,
             expiry,
-            cvv,
             balance: balance || 0,
-            cardType: detectedCardType,
         });
 
-        // Remove CVV from response
-        const cardResponse = card.toObject();
-        delete cardResponse.cvv;
+        // Set card number (this will encrypt it automatically)
+        try {
+            card.setCardNumber(cardNumber);
+        } catch (error) {
+            return res.status(400).json({
+                success: false,
+                message: error.message,
+            });
+        }
+
+        // Validate CVV if provided (but DON'T store it)
+        if (cvv) {
+            try {
+                card.validateCVV(cvv);
+            } catch (error) {
+                return res.status(400).json({
+                    success: false,
+                    message: error.message,
+                });
+            }
+        }
+
+        // Save the card (encrypted)
+        await card.save();
 
         res.status(201).json({
             success: true,
             message: 'Card added successfully',
-            data: cardResponse,
+            data: card,
         });
     } catch (error) {
         res.status(500).json({
@@ -121,10 +138,31 @@ export const updateCard = async (req, res) => {
             });
         }
 
-        card = await Card.findByIdAndUpdate(req.params.id, req.body, {
-            new: true,
-            runValidators: true,
-        }).select('-cvv');
+        // Only allow updating certain fields
+        const allowedUpdates = ['cardHolderName', 'expiry', 'balance', 'isActive'];
+        const updates = {};
+
+        for (const key of allowedUpdates) {
+            if (req.body[key] !== undefined) {
+                updates[key] = req.body[key];
+            }
+        }
+
+        // If card number is being updated, encrypt it
+        if (req.body.cardNumber) {
+            try {
+                card.setCardNumber(req.body.cardNumber);
+            } catch (error) {
+                return res.status(400).json({
+                    success: false,
+                    message: error.message,
+                });
+            }
+        }
+
+        // Apply other updates
+        Object.assign(card, updates);
+        await card.save();
 
         res.status(200).json({
             success: true,
@@ -236,13 +274,13 @@ export const transferBetweenCards = async (req, res) => {
         await fromCard.save();
         await toCard.save();
 
-        // Create transaction records
+        // Create transaction records using last 4 digits
         await Transaction.create({
             userId: req.user.id,
             amount,
             type: 'expense',
             category: 'Transfer',
-            description: `Transfer to card ending in ${toCard.cardNumber.slice(-4)}`,
+            description: `Transfer to card ending in ${toCard.lastFourDigits}`,
             date: Date.now(),
         });
 
@@ -251,7 +289,7 @@ export const transferBetweenCards = async (req, res) => {
             amount,
             type: 'income',
             category: 'Transfer',
-            description: `Transfer from card ending in ${fromCard.cardNumber.slice(-4)}`,
+            description: `Transfer from card ending in ${fromCard.lastFourDigits}`,
             date: Date.now(),
         });
 

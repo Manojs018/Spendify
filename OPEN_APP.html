@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spendify - Open Application</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #151b3d 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #00d4ff 0%, #0099ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .logo {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .tagline {
+            font-size: 24px;
+            color: #a0aec0;
+            margin-bottom: 40px;
+        }
+
+        .status-box {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 30px;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            margin: 10px 0;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+        }
+
+        .status-label {
+            font-size: 18px;
+        }
+
+        .status-value {
+            font-weight: bold;
+            color: #00ff88;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 20px 40px;
+            margin: 10px;
+            background: linear-gradient(135deg, #00d4ff 0%, #0099ff 100%);
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: none;
+        }
+
+        .instructions {
+            background: rgba(255, 170, 0, 0.1);
+            border: 1px solid rgba(255, 170, 0, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 30px;
+            text-align: left;
+        }
+
+        .instructions h3 {
+            color: #ffaa00;
+            margin-bottom: 15px;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+            line-height: 1.8;
+        }
+
+        .alert {
+            background: rgba(255, 51, 102, 0.1);
+            border: 1px solid rgba(255, 51, 102, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .alert h3 {
+            color: #ff3366;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="logo">🟦</div>
+        <h1>Spendify</h1>
+        <p class="tagline">Smart Spending. Clear Insights.</p>
+
+        <div class="alert">
+            <h3>⚠️ Important: Servers Must Be Running</h3>
+            <p>Before opening the application, make sure both servers are running.</p>
+        </div>
+
+        <div class="status-box">
+            <h2 style="margin-bottom: 20px;">Server Status</h2>
+            <div class="status-item">
+                <span class="status-label">Frontend Server</span>
+                <span class="status-value" id="frontendStatus">Checking...</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Backend Server</span>
+                <span class="status-value" id="backendStatus">Checking...</span>
+            </div>
+        </div>
+
+        <div>
+            <a href="http://localhost:3000" class="btn" target="_blank">
+                🚀 Open Spendify Application
+            </a>
+            <a href="http://localhost:5000" class="btn btn-secondary" target="_blank">
+                📡 Open API Server
+            </a>
+        </div>
+
+        <div class="instructions">
+            <h3>🚀 How to Start the Servers</h3>
+            <ol>
+                <li><strong>Start Frontend:</strong> Open terminal and run: <code>node serve-frontend.js</code></li>
+                <li><strong>Start Backend:</strong> Open another terminal and run: <code>cmd /c npm run dev</code></li>
+                <li><strong>Open Application:</strong> Click the "Open Spendify Application" button above</li>
+            </ol>
+        </div>
+
+        <div class="instructions" style="background: rgba(0, 212, 255, 0.1); border-color: rgba(0, 212, 255, 0.3);">
+            <h3 style="color: #00d4ff;">📝 Quick Test</h3>
+            <ol>
+                <li>Click "Sign up" to create an account</li>
+                <li>Fill in your name, email, and password</li>
+                <li>Click "Create Account"</li>
+                <li>You'll be redirected to the dashboard!</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        // Check server status
+        async function checkServers() {
+            // Check frontend
+            try {
+                const frontendResponse = await fetch('http://localhost:3000');
+                document.getElementById('frontendStatus').textContent = '🟢 Running';
+                document.getElementById('frontendStatus').style.color = '#00ff88';
+            } catch (error) {
+                document.getElementById('frontendStatus').textContent = '🔴 Not Running';
+                document.getElementById('frontendStatus').style.color = '#ff3366';
+            }
+
+            // Check backend
+            try {
+                const backendResponse = await fetch('http://localhost:5000/health');
+                document.getElementById('backendStatus').textContent = '🟢 Running';
+                document.getElementById('backendStatus').style.color = '#00ff88';
+            } catch (error) {
+                document.getElementById('backendStatus').textContent = '🔴 Not Running';
+                document.getElementById('backendStatus').style.color = '#ff3366';
+            }
+        }
+
+        // Check on load
+        checkServers();
+
+        // Recheck every 5 seconds
+        setInterval(checkServers, 5000);
+    </script>
+</body>
+
+</html>
