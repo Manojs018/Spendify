@@ -113,19 +113,28 @@ export const createTransaction = async (req, res) => {
             date: date || Date.now(),
         });
 
-        // Update user balance
-        const user = await User.findById(req.user.id);
-        if (type === 'income') {
-            user.balance += amount;
-        } else {
-            user.balance -= amount;
+        // Update user balance atomically using $inc to prevent race conditions
+        const incrementValue = type === 'income' ? amount : -amount;
+        const updatedUser = await User.findByIdAndUpdate(
+            req.user.id,
+            { $inc: { balance: incrementValue } },
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedUser) {
+            // Rollback transaction if user update fails
+            await transaction.deleteOne();
+            return res.status(404).json({
+                success: false,
+                message: 'User not found',
+            });
         }
-        await user.save();
 
         res.status(201).json({
             success: true,
             message: 'Transaction created successfully',
             data: transaction,
+            balance: updatedUser.balance,
         });
     } catch (error) {
         res.status(500).json({
@@ -157,28 +166,35 @@ export const updateTransaction = async (req, res) => {
             });
         }
 
-        // If amount or type changed, update user balance
-        const user = await User.findById(req.user.id);
-
-        // Revert old transaction
-        if (transaction.type === 'income') {
-            user.balance -= transaction.amount;
-        } else {
-            user.balance += transaction.amount;
-        }
-
-        // Apply new transaction
+        // Calculate balance adjustment atomically
+        const oldType = transaction.type;
+        const oldAmount = transaction.amount;
         const newType = req.body.type || transaction.type;
         const newAmount = req.body.amount || transaction.amount;
 
-        if (newType === 'income') {
-            user.balance += newAmount;
-        } else {
-            user.balance -= newAmount;
+        // Calculate the net change in balance
+        // First, revert the old transaction effect
+        const revertValue = oldType === 'income' ? -oldAmount : oldAmount;
+        // Then, apply the new transaction effect
+        const applyValue = newType === 'income' ? newAmount : -newAmount;
+        // Net change
+        const netChange = revertValue + applyValue;
+
+        // Update user balance atomically
+        const updatedUser = await User.findByIdAndUpdate(
+            req.user.id,
+            { $inc: { balance: netChange } },
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedUser) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found',
+            });
         }
 
-        await user.save();
-
+        // Update the transaction
         transaction = await Transaction.findByIdAndUpdate(req.params.id, req.body, {
             new: true,
             runValidators: true,
@@ -188,6 +204,7 @@ export const updateTransaction = async (req, res) => {
             success: true,
             message: 'Transaction updated successfully',
             data: transaction,
+            balance: updatedUser.balance,
         });
     } catch (error) {
         res.status(500).json({
@@ -219,14 +236,20 @@ export const deleteTransaction = async (req, res) => {
             });
         }
 
-        // Update user balance
-        const user = await User.findById(req.user.id);
-        if (transaction.type === 'income') {
-            user.balance -= transaction.amount;
-        } else {
-            user.balance += transaction.amount;
+        // Update user balance atomically (revert the transaction)
+        const revertValue = transaction.type === 'income' ? -transaction.amount : transaction.amount;
+        const updatedUser = await User.findByIdAndUpdate(
+            req.user.id,
+            { $inc: { balance: revertValue } },
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedUser) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found',
+            });
         }
-        await user.save();
 
         await transaction.deleteOne();
 
@@ -234,6 +257,7 @@ export const deleteTransaction = async (req, res) => {
             success: true,
             message: 'Transaction deleted successfully',
             data: {},
+            balance: updatedUser.balance,
         });
     } catch (error) {
         res.status(500).json({

@@ -51,45 +51,81 @@ export const sendMoney = async (req, res) => {
             });
         }
 
-        // Perform transfer
-        sender.balance -= amount;
-        recipient.balance += amount;
+        // Perform atomic balance updates
+        // Deduct from sender
+        const updatedSender = await User.findByIdAndUpdate(
+            sender._id,
+            { $inc: { balance: -amount } },
+            { new: true, runValidators: true }
+        );
 
-        await sender.save();
-        await recipient.save();
+        if (!updatedSender) {
+            return res.status(404).json({
+                success: false,
+                message: 'Sender not found',
+            });
+        }
+
+        // Add to recipient
+        const updatedRecipient = await User.findByIdAndUpdate(
+            recipient._id,
+            { $inc: { balance: amount } },
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedRecipient) {
+            // Rollback sender's balance if recipient update fails
+            await User.findByIdAndUpdate(
+                sender._id,
+                { $inc: { balance: amount } },
+                { new: true }
+            );
+            return res.status(404).json({
+                success: false,
+                message: 'Recipient not found. Transaction rolled back.',
+            });
+        }
 
         // Create transaction records
-        const senderTransaction = await Transaction.create({
-            userId: sender._id,
-            amount,
-            type: 'expense',
-            category: 'Transfer',
-            description: description || `Sent to ${recipient.name} (${recipient.email})`,
-            date: Date.now(),
-        });
+        let senderTransaction, recipientTransaction;
+        try {
+            senderTransaction = await Transaction.create({
+                userId: sender._id,
+                amount,
+                type: 'expense',
+                category: 'Transfer',
+                description: description || `Sent to ${recipient.name} (${recipient.email})`,
+                date: Date.now(),
+            });
 
-        const recipientTransaction = await Transaction.create({
-            userId: recipient._id,
-            amount,
-            type: 'income',
-            category: 'Transfer',
-            description: description || `Received from ${sender.name} (${sender.email})`,
-            date: Date.now(),
-        });
+            recipientTransaction = await Transaction.create({
+                userId: recipient._id,
+                amount,
+                type: 'income',
+                category: 'Transfer',
+                description: description || `Received from ${sender.name} (${sender.email})`,
+                date: Date.now(),
+            });
+        } catch (error) {
+            // Rollback balance updates if transaction creation fails
+            await User.findByIdAndUpdate(sender._id, { $inc: { balance: amount } });
+            await User.findByIdAndUpdate(recipient._id, { $inc: { balance: -amount } });
+            throw new Error('Failed to create transaction records. Transfer rolled back.');
+        }
 
         res.status(200).json({
             success: true,
             message: 'Money sent successfully',
             data: {
                 sender: {
-                    id: sender._id,
-                    name: sender.name,
-                    newBalance: sender.balance,
+                    id: updatedSender._id,
+                    name: updatedSender.name,
+                    newBalance: updatedSender.balance,
                 },
                 recipient: {
-                    id: recipient._id,
-                    name: recipient.name,
-                    email: recipient.email,
+                    id: updatedRecipient._id,
+                    name: updatedRecipient.name,
+                    email: updatedRecipient.email,
                 },
                 amount,
                 transaction: senderTransaction,
