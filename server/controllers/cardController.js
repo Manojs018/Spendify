@@ -267,45 +267,80 @@ export const transferBetweenCards = async (req, res) => {
             });
         }
 
-        // Perform transfer
-        fromCard.balance -= amount;
-        toCard.balance += amount;
+        // Perform atomic balance updates
+        // Deduct from source card
+        const updatedFromCard = await Card.findByIdAndUpdate(
+            fromCardId,
+            { $inc: { balance: -amount } },
+            { new: true, runValidators: true }
+        );
 
-        await fromCard.save();
-        await toCard.save();
+        if (!updatedFromCard) {
+            return res.status(404).json({
+                success: false,
+                message: 'Source card not found',
+            });
+        }
+
+        // Add to destination card
+        const updatedToCard = await Card.findByIdAndUpdate(
+            toCardId,
+            { $inc: { balance: amount } },
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedToCard) {
+            // Rollback source card balance if destination update fails
+            await Card.findByIdAndUpdate(
+                fromCardId,
+                { $inc: { balance: amount } },
+                { new: true }
+            );
+            return res.status(404).json({
+                success: false,
+                message: 'Destination card not found. Transfer rolled back.',
+            });
+        }
 
         // Create transaction records using last 4 digits
-        await Transaction.create({
-            userId: req.user.id,
-            amount,
-            type: 'expense',
-            category: 'Transfer',
-            description: `Transfer to card ending in ${toCard.lastFourDigits}`,
-            date: Date.now(),
-        });
+        try {
+            await Transaction.create({
+                userId: req.user.id,
+                amount,
+                type: 'expense',
+                category: 'Transfer',
+                description: `Transfer to card ending in ${toCard.lastFourDigits}`,
+                date: Date.now(),
+            });
 
-        await Transaction.create({
-            userId: req.user.id,
-            amount,
-            type: 'income',
-            category: 'Transfer',
-            description: `Transfer from card ending in ${fromCard.lastFourDigits}`,
-            date: Date.now(),
-        });
+            await Transaction.create({
+                userId: req.user.id,
+                amount,
+                type: 'income',
+                category: 'Transfer',
+                description: `Transfer from card ending in ${fromCard.lastFourDigits}`,
+                date: Date.now(),
+            });
+        } catch (error) {
+            // Rollback card balances if transaction creation fails
+            await Card.findByIdAndUpdate(fromCardId, { $inc: { balance: amount } });
+            await Card.findByIdAndUpdate(toCardId, { $inc: { balance: -amount } });
+            throw new Error('Failed to create transaction records. Transfer rolled back.');
+        }
 
         res.status(200).json({
             success: true,
             message: 'Transfer completed successfully',
             data: {
                 fromCard: {
-                    id: fromCard._id,
-                    maskedNumber: fromCard.maskedNumber,
-                    balance: fromCard.balance,
+                    id: updatedFromCard._id,
+                    maskedNumber: updatedFromCard.maskedNumber,
+                    balance: updatedFromCard.balance,
                 },
                 toCard: {
-                    id: toCard._id,
-                    maskedNumber: toCard.maskedNumber,
-                    balance: toCard.balance,
+                    id: updatedToCard._id,
+                    maskedNumber: updatedToCard.maskedNumber,
+                    balance: updatedToCard.balance,
                 },
                 amount,
             },
