@@ -140,9 +140,26 @@ function getPasswordErrors(password) {
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Check if user is already authenticated
+    // ── If already authenticated, show banner instead of hard-redirecting ──
     if (isAuthenticated()) {
-        window.location.href = 'dashboard.html';
+        const banner = document.getElementById('alreadyAuthBanner');
+        const loginF = document.getElementById('loginForm');
+        const registerF = document.getElementById('registerForm');
+        if (banner) banner.style.display = 'block';
+        if (loginF) loginF.style.display = 'none';
+        if (registerF) registerF.style.display = 'none';
+
+        // Sign-out button clears session and shows login form
+        const signOutBtn = document.getElementById('signOutBtn');
+        if (signOutBtn) {
+            signOutBtn.addEventListener('click', () => {
+                removeToken();
+                removeUser();
+                if (banner) banner.style.display = 'none';
+                if (loginF) loginF.style.display = 'block';
+                showToast('Signed out. You can now register or login.', 'success');
+            });
+        }
         return;
     }
 
