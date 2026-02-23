@@ -23,8 +23,22 @@ const userSchema = new mongoose.Schema(
         password: {
             type: String,
             required: [true, 'Please provide a password'],
-            minlength: [6, 'Password must be at least 6 characters'],
-            select: false, // Don't return password by default
+            minlength: [12, 'Password must be at least 12 characters'],
+            validate: {
+                validator: function (value) {
+                    // Skip validation if password is already hashed (starts with $2)
+                    if (value && value.startsWith('$2')) return true;
+                    return (
+                        /[A-Z]/.test(value) &&   // uppercase
+                        /[a-z]/.test(value) &&   // lowercase
+                        /[0-9]/.test(value) &&   // number
+                        /[^A-Za-z0-9]/.test(value) // special character
+                    );
+                },
+                message:
+                    'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
+            },
+            select: false, // Don\'t return password by default
         },
         balance: {
             type: Number,

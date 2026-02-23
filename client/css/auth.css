@@ -228,3 +228,119 @@
         font-size: var(--font-size-3xl);
     }
 }
+
+/* ===================================
+   PASSWORD STRENGTH INDICATOR
+   =================================== */
+
+.password-strength {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.strength-bar {
+    flex: 1;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.strength-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 3px;
+    transition: width 0.4s ease, background-color 0.4s ease;
+}
+
+.strength-very-weak {
+    background: #ef4444;
+}
+
+.strength-weak {
+    background: #f97316;
+}
+
+.strength-fair {
+    background: #eab308;
+}
+
+.strength-good {
+    background: #3b82f6;
+}
+
+.strength-strong {
+    background: #22c55e;
+}
+
+.strength-label {
+    font-size: 11px;
+    font-weight: 600;
+    min-width: 70px;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.label-very-weak {
+    color: #ef4444;
+}
+
+.label-weak {
+    color: #f97316;
+}
+
+.label-fair {
+    color: #eab308;
+}
+
+.label-good {
+    color: #3b82f6;
+}
+
+.label-strong {
+    color: #22c55e;
+}
+
+/* ===================================
+   PASSWORD REQUIREMENTS CHECKLIST
+   =================================== */
+
+.password-requirements {
+    list-style: none;
+    margin: 10px 0 0 0;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.password-requirements li {
+    font-size: 12px;
+    font-weight: 500;
+    transition: color 0.25s ease;
+}
+
+.req-fail {
+    color: rgba(255, 255, 255, 0.35);
+}
+
+.req-met {
+    color: #22c55e;
+}
+
+/* ===================================
+   FIELD-LEVEL ERROR MESSAGE
+   =================================== */
+
+.field-error {
+    display: none;
+    font-size: 12px;
+    color: #ef4444;
+    margin-top: 4px;
+    font-weight: 500;
+}

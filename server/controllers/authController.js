@@ -18,6 +18,31 @@ export const register = async (req, res) => {
             });
         }
 
+        // Validate password strength (OWASP guidelines)
+        const passwordErrors = [];
+        if (!password || password.length < 12) {
+            passwordErrors.push('Password must be at least 12 characters long');
+        }
+        if (password && !/[A-Z]/.test(password)) {
+            passwordErrors.push('Password must contain at least one uppercase letter');
+        }
+        if (password && !/[a-z]/.test(password)) {
+            passwordErrors.push('Password must contain at least one lowercase letter');
+        }
+        if (password && !/[0-9]/.test(password)) {
+            passwordErrors.push('Password must contain at least one number');
+        }
+        if (password && !/[^A-Za-z0-9]/.test(password)) {
+            passwordErrors.push('Password must contain at least one special character (e.g. !@#$%^&*)');
+        }
+        if (passwordErrors.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: passwordErrors[0],
+                errors: passwordErrors,
+            });
+        }
+
         // Create user
         const user = await User.create({
             name,
