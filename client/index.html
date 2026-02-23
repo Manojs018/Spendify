@@ -54,7 +54,21 @@
 
         <!-- Right Side - Auth Forms -->
         <div class="auth-forms">
-            <!-- Login Form -->
+
+            <!-- Already-authenticated banner (hidden by default) -->
+            <div class="auth-form" id="alreadyAuthBanner" style="display:none;">
+                <div class="already-auth-icon">✅</div>
+                <h2>You're already signed in!</h2>
+                <p class="form-subtitle">Go to your dashboard or sign out to switch accounts.</p>
+                <div style="display:flex;flex-direction:column;gap:12px;margin-top:24px;">
+                    <a href="dashboard.html" class="btn btn-primary btn-block"
+                        style="text-align:center;text-decoration:none;">Go to Dashboard →</a>
+                    <button id="signOutBtn" class="btn btn-block"
+                        style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:var(--text-secondary);cursor:pointer;">Sign
+                        Out &amp; Register New Account</button>
+                </div>
+            </div>
+
             <div class="auth-form" id="loginForm">
                 <h2>Welcome Back</h2>
                 <p class="form-subtitle">Sign in to continue to your dashboard</p>
