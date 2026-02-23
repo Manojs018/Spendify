@@ -113,8 +113,19 @@ async function apiRequest(url, options = {}) {
         const data = await response.json();
 
         if (!response.ok) {
-            // Handle 401 Unauthorized
-            if (response.status === 401) {
+            // 429 – Rate limit exceeded
+            if (response.status === 429) {
+                const retry = data.retryAfter || '15';
+                throw new Error(data.message || `Too many attempts. Please wait ${retry} minutes and try again.`);
+            }
+
+            // 423 – Account locked
+            if (response.status === 423) {
+                throw new Error(data.message || 'Account is temporarily locked. Please try again later.');
+            }
+
+            // 401 – Unauthorised (only auto-logout for authenticated routes, not login/register)
+            if (response.status === 401 && !url.includes('/auth/login') && !url.includes('/auth/register')) {
                 logout();
                 throw new Error('Session expired. Please login again.');
             }
