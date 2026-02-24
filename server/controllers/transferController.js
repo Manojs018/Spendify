@@ -1,5 +1,11 @@
 import User from '../models/User.js';
 import Transaction from '../models/Transaction.js';
+import {
+    escapeRegex,
+    validateTransferBody,
+    validateSearchQuery,
+    stripXSS,
+} from '../middleware/sanitize.js';
 
 // @desc    Send money to another user
 // @route   POST /api/transfer/send
@@ -8,14 +14,22 @@ export const sendMoney = async (req, res) => {
     try {
         const { recipientEmail, amount, description } = req.body;
 
-        if (!recipientEmail || !amount) {
+        // ── Validate input ─────────────────────────────────────────────────
+        const validationErrors = validateTransferBody({ recipientEmail, amount, description });
+        if (validationErrors.length > 0) {
             return res.status(400).json({
                 success: false,
-                message: 'Please provide recipient email and amount',
+                message: validationErrors[0],
+                errors: validationErrors,
             });
         }
 
-        if (amount <= 0) {
+        // ── Sanitize and parse ─────────────────────────────────────────────
+        const safeEmail = recipientEmail.trim().toLowerCase();
+        const safeAmount = parseFloat(amount);
+        const safeDescription = description ? stripXSS(description.trim()) : undefined;
+
+        if (safeAmount <= 0) {
             return res.status(400).json({
                 success: false,
                 message: 'Amount must be greater than 0',
@@ -26,15 +40,15 @@ export const sendMoney = async (req, res) => {
         const sender = await User.findById(req.user.id);
 
         // Check if sender has sufficient balance
-        if (sender.balance < amount) {
+        if (sender.balance < safeAmount) {
             return res.status(400).json({
                 success: false,
                 message: 'Insufficient balance',
             });
         }
 
-        // Find recipient
-        const recipient = await User.findOne({ email: recipientEmail });
+        // Find recipient – use exact string match (no regex) to prevent injection
+        const recipient = await User.findOne({ email: safeEmail });
 
         if (!recipient) {
             return res.status(404).json({
@@ -52,10 +66,9 @@ export const sendMoney = async (req, res) => {
         }
 
         // Perform atomic balance updates
-        // Deduct from sender
         const updatedSender = await User.findByIdAndUpdate(
             sender._id,
-            { $inc: { balance: -amount } },
+            { $inc: { balance: -safeAmount } },
             { new: true, runValidators: true }
         );
 
@@ -66,10 +79,9 @@ export const sendMoney = async (req, res) => {
             });
         }
 
-        // Add to recipient
         const updatedRecipient = await User.findByIdAndUpdate(
             recipient._id,
-            { $inc: { balance: amount } },
+            { $inc: { balance: safeAmount } },
             { new: true, runValidators: true }
         );
 
@@ -77,7 +89,7 @@ export const sendMoney = async (req, res) => {
             // Rollback sender's balance if recipient update fails
             await User.findByIdAndUpdate(
                 sender._id,
-                { $inc: { balance: amount } },
+                { $inc: { balance: safeAmount } },
                 { new: true }
             );
             return res.status(404).json({
@@ -86,30 +98,34 @@ export const sendMoney = async (req, res) => {
             });
         }
 
-        // Create transaction records
+        // Create transaction records (use safe description, not raw user input)
         let senderTransaction, recipientTransaction;
         try {
+            // Use sanitized custom description or a safe system-generated one
+            const senderDesc = safeDescription || `Sent to ${stripXSS(recipient.name)} (${safeEmail})`;
+            const recipientDesc = safeDescription || `Received from ${stripXSS(sender.name)} (${stripXSS(sender.email)})`;
+
             senderTransaction = await Transaction.create({
                 userId: sender._id,
-                amount,
+                amount: safeAmount,
                 type: 'expense',
                 category: 'Transfer',
-                description: description || `Sent to ${recipient.name} (${recipient.email})`,
+                description: senderDesc,
                 date: Date.now(),
             });
 
             recipientTransaction = await Transaction.create({
                 userId: recipient._id,
-                amount,
+                amount: safeAmount,
                 type: 'income',
                 category: 'Transfer',
-                description: description || `Received from ${sender.name} (${sender.email})`,
+                description: recipientDesc,
                 date: Date.now(),
             });
         } catch (error) {
             // Rollback balance updates if transaction creation fails
-            await User.findByIdAndUpdate(sender._id, { $inc: { balance: amount } });
-            await User.findByIdAndUpdate(recipient._id, { $inc: { balance: -amount } });
+            await User.findByIdAndUpdate(sender._id, { $inc: { balance: safeAmount } });
+            await User.findByIdAndUpdate(recipient._id, { $inc: { balance: -safeAmount } });
             throw new Error('Failed to create transaction records. Transfer rolled back.');
         }
 
@@ -127,14 +143,14 @@ export const sendMoney = async (req, res) => {
                     name: updatedRecipient.name,
                     email: updatedRecipient.email,
                 },
-                amount,
+                amount: safeAmount,
                 transaction: senderTransaction,
             },
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message,
+            message: error.message || 'Server error while processing transfer',
         });
     }
 };
@@ -146,13 +162,17 @@ export const getTransferHistory = async (req, res) => {
     try {
         const { page = 1, limit = 10 } = req.query;
 
+        // ── Safe pagination bounds ─────────────────────────────────────────
+        const pageNum = Math.max(1, parseInt(page, 10) || 1);
+        const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
+
         const transfers = await Transaction.find({
             userId: req.user.id,
             category: 'Transfer',
         })
             .sort('-date')
-            .limit(limit * 1)
-            .skip((page - 1) * limit)
+            .limit(limitNum)
+            .skip((pageNum - 1) * limitNum)
             .exec();
 
         const count = await Transaction.countDocuments({
@@ -164,14 +184,14 @@ export const getTransferHistory = async (req, res) => {
             success: true,
             count: transfers.length,
             total: count,
-            totalPages: Math.ceil(count / limit),
-            currentPage: parseInt(page),
+            totalPages: Math.ceil(count / limitNum),
+            currentPage: pageNum,
             data: transfers,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message,
+            message: 'Server error while fetching transfer history',
         });
     }
 };
@@ -183,15 +203,21 @@ export const searchUsers = async (req, res) => {
     try {
         const { email } = req.query;
 
-        if (!email) {
+        // ── Validate ───────────────────────────────────────────────────────
+        const searchErrors = validateSearchQuery({ email });
+        if (searchErrors.length > 0) {
             return res.status(400).json({
                 success: false,
-                message: 'Please provide email to search',
+                message: searchErrors[0],
+                errors: searchErrors,
             });
         }
 
+        // ── ReDoS-safe regex: escape user input before building RegExp ─────
+        const safeEmailPattern = new RegExp(escapeRegex(email.trim()), 'i');
+
         const users = await User.find({
-            email: new RegExp(email, 'i'),
+            email: safeEmailPattern,
             _id: { $ne: req.user.id }, // Exclude current user
         })
             .select('name email')
@@ -205,7 +231,7 @@ export const searchUsers = async (req, res) => {
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message,
+            message: 'Server error while searching users',
         });
     }
 };
