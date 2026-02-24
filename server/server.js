@@ -6,6 +6,7 @@ import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import connectDB from './config/db.js';
 import errorHandler from './middleware/errorHandler.js';
+import { sanitizeBody } from './middleware/sanitize.js';
 import authRoutes from './routes/authRoutes.js';
 import transactionRoutes from './routes/transactionRoutes.js';
 import cardRoutes from './routes/cardRoutes.js';
@@ -34,6 +35,9 @@ app.use(
 // Body parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Input sanitization – XSS & NoSQL injection protection (applied globally)
+app.use(sanitizeBody);
 
 // Logging middleware
 if (process.env.NODE_ENV === 'development') {
