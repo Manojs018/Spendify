@@ -160,6 +160,54 @@ export const createTransaction = async (req, res) => {
         const safeCategory = stripXSS(category.trim());
         const safeAmount = parseFloat(amount);
 
+        // ── Insufficient-funds check for expense transactions ──────────────
+        if (type === 'expense') {
+            // Atomic conditional update: only deducts if balance >= safeAmount
+            // This prevents race conditions (no separate read-then-write)
+            const updatedUser = await User.findOneAndUpdate(
+                { _id: req.user.id, balance: { $gte: safeAmount } },
+                { $inc: { balance: -safeAmount } },
+                { new: true }
+            );
+
+            if (!updatedUser) {
+                // Either user not found OR balance too low — read current balance for clear message
+                const currentUser = await User.findById(req.user.id);
+                if (!currentUser) {
+                    return res.status(404).json({ success: false, message: 'User not found' });
+                }
+                return res.status(400).json({
+                    success: false,
+                    message: `Insufficient funds: your balance is $${currentUser.balance.toFixed(2)}`,
+                    balance: currentUser.balance,
+                });
+            }
+
+            // Balance deducted atomically — now create the transaction record
+            const transaction = await Transaction.create({
+                userId: req.user.id,
+                amount: safeAmount,
+                type,
+                category: safeCategory,
+                description: safeDescription,
+                date: date ? new Date(date) : Date.now(),
+            });
+
+            // Rollback balance if transaction creation fails (rare, defensive)
+            if (!transaction) {
+                await User.findByIdAndUpdate(req.user.id, { $inc: { balance: safeAmount } });
+                return res.status(500).json({ success: false, message: 'Failed to record transaction' });
+            }
+
+            return res.status(201).json({
+                success: true,
+                message: 'Transaction created successfully',
+                data: transaction,
+                balance: updatedUser.balance,
+            });
+        }
+
+        // ── Income transaction: just add to balance ────────────────────────
         const transaction = await Transaction.create({
             userId: req.user.id,
             amount: safeAmount,
@@ -169,24 +217,18 @@ export const createTransaction = async (req, res) => {
             date: date ? new Date(date) : Date.now(),
         });
 
-        // Update user balance atomically using $inc to prevent race conditions
-        const incrementValue = type === 'income' ? safeAmount : -safeAmount;
         const updatedUser = await User.findByIdAndUpdate(
             req.user.id,
-            { $inc: { balance: incrementValue } },
-            { new: true, runValidators: true }
+            { $inc: { balance: safeAmount } },
+            { new: true }
         );
 
         if (!updatedUser) {
-            // Rollback transaction if user update fails
             await transaction.deleteOne();
-            return res.status(404).json({
-                success: false,
-                message: 'User not found',
-            });
+            return res.status(404).json({ success: false, message: 'User not found' });
         }
 
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
             message: 'Transaction created successfully',
             data: transaction,
@@ -253,17 +295,49 @@ export const updateTransaction = async (req, res) => {
             ? stripXSS(String(description).trim())
             : transaction.description;
 
-        // ── Calculate balance adjustment atomically ────────────────────────
+        // ── Calculate how balance would change ────────────────────────────
         const oldType = transaction.type;
         const oldAmount = transaction.amount;
-        const newType = type;
-        const newAmount = safeAmount;
-
-        const revertValue = oldType === 'income' ? -oldAmount : oldAmount;
-        const applyValue = newType === 'income' ? newAmount : -newAmount;
+        const revertValue = oldType === 'income' ? -oldAmount : oldAmount;   // undo old
+        const applyValue = type === 'income' ? safeAmount : -safeAmount; // apply new
         const netChange = revertValue + applyValue;
 
-        // Update user balance atomically
+        // ── Guard: net change must not push balance below 0 ───────────────
+        if (netChange < 0) {
+            // Only use atomic conditional update when the change is a deduction
+            const updatedUser = await User.findOneAndUpdate(
+                { _id: req.user.id, balance: { $gte: -netChange } },
+                { $inc: { balance: netChange } },
+                { new: true }
+            );
+
+            if (!updatedUser) {
+                const currentUser = await User.findById(req.user.id);
+                if (!currentUser) {
+                    return res.status(404).json({ success: false, message: 'User not found' });
+                }
+                return res.status(400).json({
+                    success: false,
+                    message: `Insufficient funds: your balance is $${currentUser.balance.toFixed(2)}`,
+                    balance: currentUser.balance,
+                });
+            }
+
+            // Update the transaction record
+            transaction = await Transaction.findByIdAndUpdate(req.params.id, {
+                amount: safeAmount, type, category: safeCategory, description: safeDescription,
+                ...(date !== undefined ? { date: new Date(date) } : {}),
+            }, { new: true, runValidators: true });
+
+            return res.status(200).json({
+                success: true,
+                message: 'Transaction updated successfully',
+                data: transaction,
+                balance: updatedUser.balance,
+            });
+        }
+
+        // ── Net change is zero or positive — safe to apply unconditionally ─
         const updatedUser = await User.findByIdAndUpdate(
             req.user.id,
             { $inc: { balance: netChange } },
@@ -271,30 +345,20 @@ export const updateTransaction = async (req, res) => {
         );
 
         if (!updatedUser) {
-            return res.status(404).json({
-                success: false,
-                message: 'User not found',
-            });
+            return res.status(404).json({ success: false, message: 'User not found' });
         }
 
-        // Build a safe update object (only known fields, no arbitrary req.body pass-through)
         const updateData = {
-            amount: safeAmount,
-            type,
-            category: safeCategory,
-            description: safeDescription,
+            amount: safeAmount, type, category: safeCategory, description: safeDescription,
         };
-        if (date !== undefined) {
-            updateData.date = new Date(date);
-        }
+        if (date !== undefined) updateData.date = new Date(date);
 
-        // Update the transaction
         transaction = await Transaction.findByIdAndUpdate(req.params.id, updateData, {
             new: true,
             runValidators: true,
         });
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: 'Transaction updated successfully',
             data: transaction,
@@ -330,8 +394,41 @@ export const deleteTransaction = async (req, res) => {
             });
         }
 
-        // Update user balance atomically (revert the transaction)
+        // ── Revert the balance effect of this transaction ─────────────────
+        // Reverting an income = subtract (could go negative if other expenses consumed it)
+        // Reverting an expense = add back (always safe)
         const revertValue = transaction.type === 'income' ? -transaction.amount : transaction.amount;
+
+        if (revertValue < 0) {
+            // Reverting income: guard against going negative atomically
+            const updatedUser = await User.findOneAndUpdate(
+                { _id: req.user.id, balance: { $gte: transaction.amount } },
+                { $inc: { balance: revertValue } },
+                { new: true }
+            );
+
+            if (!updatedUser) {
+                const currentUser = await User.findById(req.user.id);
+                if (!currentUser) {
+                    return res.status(404).json({ success: false, message: 'User not found' });
+                }
+                return res.status(400).json({
+                    success: false,
+                    message: `Cannot delete: removing this income would result in a negative balance. Current balance: $${currentUser.balance.toFixed(2)}`,
+                    balance: currentUser.balance,
+                });
+            }
+
+            await transaction.deleteOne();
+            return res.status(200).json({
+                success: true,
+                message: 'Transaction deleted successfully',
+                data: {},
+                balance: updatedUser.balance,
+            });
+        }
+
+        // Reverting an expense: safe unconditional add-back
         const updatedUser = await User.findByIdAndUpdate(
             req.user.id,
             { $inc: { balance: revertValue } },
@@ -339,15 +436,12 @@ export const deleteTransaction = async (req, res) => {
         );
 
         if (!updatedUser) {
-            return res.status(404).json({
-                success: false,
-                message: 'User not found',
-            });
+            return res.status(404).json({ success: false, message: 'User not found' });
         }
 
         await transaction.deleteOne();
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: 'Transaction deleted successfully',
             data: {},

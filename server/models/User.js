@@ -43,6 +43,7 @@ const userSchema = new mongoose.Schema(
         balance: {
             type: Number,
             default: 0,
+            min: [0, 'Insufficient funds: balance cannot go negative'],
         },
 
         // ── Account Lockout (brute-force protection) ──────────────
