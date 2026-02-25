@@ -95,6 +95,20 @@ export function escapeRegex(str) {
  *   a) Rejects the request if any NoSQL operator key is detected.
  *   b) Strips XSS from every string in req.body.
  */
+// HTML detection regex – looks for tag-like patterns before they are stripped
+const HTML_TAG_PATTERN = /<[^>]+>/;
+
+/**
+ * Reject fields that contain raw HTML markup before stripping.
+ * Applies to the category field specifically — HTML there is never valid.
+ */
+function rejectHtmlInCategory(body, path = 'body') {
+    if (!body || typeof body !== 'object') return;
+    if (typeof body.category === 'string' && HTML_TAG_PATTERN.test(body.category)) {
+        throw new Error('Category contains invalid characters');
+    }
+}
+
 export function sanitizeBody(req, res, next) {
     try {
         // Guard body against NoSQL injection
@@ -106,6 +120,9 @@ export function sanitizeBody(req, res, next) {
         if (req.query && typeof req.query === 'object') {
             guardNoSQL(req.query, 'query');
         }
+
+        // Reject HTML in category BEFORE XSS stripping obscures it
+        rejectHtmlInCategory(req.body);
 
         // XSS-clean all string values in body
         req.body = deepSanitize(req.body);
@@ -145,6 +162,10 @@ function deepSanitize(obj) {
  * Returns null on success, or an error string.
  */
 export function validateAmount(value, { min = 0.01, max = 1_000_000 } = {}) {
+    // Reject non-scalar types (arrays, objects) — catches NoSQL-style injection
+    // that slips through guardNoSQL (e.g. a plain array has no $ keys)
+    if (value === null || value === undefined) return 'Amount must be a valid number';
+    if (typeof value === 'object') return 'Amount must be a valid number';
     const n = parseFloat(value);
     if (!isFinite(n)) return 'Amount must be a valid number';
     if (n < min) return `Amount must be at least ${min}`;
