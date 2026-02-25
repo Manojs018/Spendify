@@ -86,12 +86,10 @@ Sec "2. VALID EXPENSE WITHIN BALANCE"
 
 $r = ApiReq POST "/transactions" @{ amount = 100; type = "income"; category = "Salary" }
 Chk ($r.s -eq 201) "Add 100 income -> 201" "$($r.s): $($r.b.message)"
-$incomeId = $r.b.data._id
 Chk ([double]$r.b.balance -eq 100) "Balance is 100 after income" "balance=$($r.b.balance)"
 
 $r = ApiReq POST "/transactions" @{ amount = 40; type = "expense"; category = "Food" }
 Chk ($r.s -eq 201) "Expense 40 (have 100) -> 201" "$($r.s): $($r.b.message)"
-$expense1Id = $r.b.data._id
 Chk ([double]$r.b.balance -eq 60) "Balance is 60 after 40 expense" "balance=$($r.b.balance)"
 
 # ── 3. EXPENSE EXCEEDING BALANCE ─────────────────────────────────────────────
@@ -111,7 +109,6 @@ Sec "4. EXPENSE EXACTLY EQUALS BALANCE (EDGE CASE)"
 
 $r = ApiReq POST "/transactions" @{ amount = 60; type = "expense"; category = "Rent" }
 Chk ($r.s -eq 201) "Expense 60 when balance=60 -> 201 (allowed)" "$($r.s): $($r.b.message)"
-$expense2Id = $r.b.data._id
 Chk ([double]$r.b.balance -eq 0) "Balance is exactly 0 (not negative)" "balance=$($r.b.balance)"
 
 # ── 5. NO EXPENSE ON ZERO BALANCE ────────────────────────────────────────────
@@ -131,7 +128,6 @@ $income2Id = $r.b.data._id
 
 $r = ApiReq POST "/transactions" @{ amount = 20; type = "income"; category = "Tips" }
 Chk ($r.s -eq 201) "Add 20 income -> balance=50" "$($r.b.message)"
-$income3Id = $r.b.data._id
 
 $r = ApiReq POST "/transactions" @{ amount = 25; type = "expense"; category = "Bills" }
 Chk ($r.s -eq 201) "Spend 25 -> balance=25" "$($r.b.message)"
@@ -179,7 +175,6 @@ Sec "10. CONSECUTIVE EXPENSES - ATOMIC SAFETY"
 # Balance is 50 now
 $r = ApiReq POST "/transactions" @{ amount = 30; type = "expense"; category = "Food" }
 Chk ($r.s -eq 201) "First 30 expense -> 201 (balance=20)" "$($r.b.message)"
-$exp4Id = $r.b.data._id
 Chk ([double]$r.b.balance -eq 20) "Balance is 20" "balance=$($r.b.balance)"
 
 $r = ApiReq POST "/transactions" @{ amount = 25; type = "expense"; category = "Transport" }
@@ -194,7 +189,6 @@ Sec "11. INCOME TRANSACTIONS ALWAYS ALLOWED"
 
 $r = ApiReq POST "/transactions" @{ amount = 500000; type = "income"; category = "Jackpot" }
 Chk ($r.s -eq 201) "Large income (500000) always accepted -> 201" "$($r.b.message)"
-$bigIncomeId = $r.b.data._id
 
 # ── 12. TRANSFER INSUFFICIENT FUNDS ──────────────────────────────────────────
 Sec "12. TRANSFER INSUFFICIENT FUNDS"
