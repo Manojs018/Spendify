@@ -4,14 +4,14 @@
  * Comprehensive tests verifying XSS, NoSQL injection, ReDoS, and input
  * validation protections in the Spendify API.
  *
- * Uses curl.exe (native on Windows 10+) via child_process — avoids all
- * platform-specific issues with Node fetch / PowerShell WebRequest.
+ * Uses curl.exe (native Windows 10+) via execFileSync — no quoting issues,
+ * no fetch problems, no PowerShell version constraints.
  *
  * Run:  node server/tests/sanitizationTests.js
  *       (server must be running on port 5000)
  */
 
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 
 const BASE = 'http://127.0.0.1:5000/api';
 const BYPASS = 'spendify-dev-test-bypass';
@@ -21,42 +21,51 @@ let failed = 0;
 let token = '';
 
 // ─── HTTP via curl.exe ────────────────────────────────────────────────────────
+// execFileSync with an array avoids all shell escaping / quoting issues.
+// The sentinel string is injected after the response body so we can split
+// the JSON body from the HTTP status code.
 function req(method, path, body = null, auth = true) {
     const url = `${BASE}${path}`;
+
     const args = [
-        'curl.exe',
-        '-s',                          // silent
-        '-o', '-',                     // output to stdout
-        '-w', '\\n__STATUS__%{http_code}',  // append status at end
+        '-s',                                       // silent mode
         '--max-time', '10',
         '-X', method.toUpperCase(),
-        '-H', `Content-Type: application/json`,
+        '-H', 'Content-Type: application/json',
         '-H', `X-Test-Bypass: ${BYPASS}`,
+        '-w', '__SPENDIFYSTATUS__%{http_code}',     // append status AFTER body
     ];
 
     if (auth && token) args.push('-H', `Authorization: Bearer ${token}`);
     if (body) args.push('-d', JSON.stringify(body));
-
     args.push(url);
 
     let raw = '';
     try {
-        raw = execSync(args.join(' '), { encoding: 'utf8', timeout: 12000 });
+        raw = execFileSync('curl.exe', args, {
+            encoding: 'utf8',
+            timeout: 12000,
+            windowsHide: true,
+        });
     } catch (e) {
-        raw = e.stdout || '';
+        // curl exits non-zero on connection error; stdout may still have data
+        raw = String(e.stdout ?? '');
     }
 
-    // Split body from status line appended by -w
-    const sep = raw.lastIndexOf('\n__STATUS__');
-    const sc = sep >= 0 ? parseInt(raw.slice(sep + 10), 10) : 0;
-    const text = sep >= 0 ? raw.slice(0, sep) : raw;
+    // The response looks like: <JSON body>__SPENDIFYSTATUS__200
+    const SENTINEL = '__SPENDIFYSTATUS__';
+    const sepIdx = raw.lastIndexOf(SENTINEL);
+    const statusStr = sepIdx >= 0 ? raw.slice(sepIdx + SENTINEL.length).trim() : '0';
+    const text = sepIdx >= 0 ? raw.slice(0, sepIdx) : raw;
+    const sc = parseInt(statusStr, 10) || 0;
+
     let json = {};
     try { json = JSON.parse(text); } catch { }
 
     return { status: sc, body: json };
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 const G = '\x1b[32m'; const R = '\x1b[31m'; const Y = '\x1b[33m';
 const C = '\x1b[36m'; const B = '\x1b[1m'; const X = '\x1b[0m';
 
@@ -73,14 +82,14 @@ function section(t) { console.log(`\n${C}${B}━━━ ${t} ━━━${X}`); }
 
 function msgHas(resp, kw) {
     const lkw = kw.toLowerCase();
-    if (String(resp.body?.message || '').toLowerCase().includes(lkw)) return true;
+    if (String(resp.body?.message ?? '').toLowerCase().includes(lkw)) return true;
     if (Array.isArray(resp.body?.errors)) {
         return resp.body.errors.some(e => String(e).toLowerCase().includes(lkw));
     }
     return false;
 }
 
-// ─── Setup ───────────────────────────────────────────────────────────────────
+// ─── Setup ────────────────────────────────────────────────────────────────────
 function setup() {
     section('Setup – create test user');
     const email = `sanitest_${Date.now()}@spendify.test`;
@@ -97,7 +106,7 @@ function setup() {
     }
 }
 
-// ─── 1. XSS Prevention ───────────────────────────────────────────────────────
+// ─── 1. XSS Prevention ────────────────────────────────────────────────────────
 function testXSS() {
     section('1. XSS Prevention');
 
@@ -121,18 +130,18 @@ function testXSS() {
             const id = r.body?.data?._id;
             if (id) req('DELETE', `/transactions/${id}`);
         } else {
-            assert(r.status === 400, `XSS blocked (${r.status}): "${short}"`,
-                JSON.stringify(r.body));
+            assert(r.status === 400,
+                `XSS payload blocked (${r.status}): "${short}"`, JSON.stringify(r.body));
         }
     }
 
-    // XSS in category – strict char validation rejects HTML
+    // XSS in category – strict char validation rejects it
     const catR = req('POST', '/transactions',
         { amount: 10, type: 'income', category: '<script>alert(1)</script>' });
     assert(catR.status === 400, 'XSS in category field → 400', catR.body?.message);
 }
 
-// ─── 2. NoSQL Injection Prevention ───────────────────────────────────────────
+// ─── 2. NoSQL Injection Prevention ────────────────────────────────────────────
 function testNoSQL() {
     section('2. NoSQL Injection Prevention');
 
@@ -162,7 +171,7 @@ function testNoSQL() {
         `Got ${arrInj.status}: ${arrInj.body?.message}`);
 }
 
-// ─── 3. ReDoS Prevention ─────────────────────────────────────────────────────
+// ─── 3. ReDoS Prevention ──────────────────────────────────────────────────────
 function testReDoS() {
     section('3. ReDoS Prevention – responds in < 3 s');
 
@@ -184,7 +193,7 @@ function testReDoS() {
         `ReDoS category filter → ${ms}ms`);
 }
 
-// ─── 4. Input Validation ─────────────────────────────────────────────────────
+// ─── 4. Input Validation – Clear Error Messages ────────────────────────────────
 function testValidation() {
     section('4. Input Validation – clear error messages');
 
@@ -205,8 +214,7 @@ function testValidation() {
     for (const [body, kw, label] of txCases) {
         const r = req('POST', '/transactions', body);
         assert(r.status === 400 && msgHas(r, kw),
-            `${label} → 400 + "${kw}"`,
-            `Got ${r.status}: "${r.body?.message}"`);
+            `${label} → 400 + "${kw}"`, `Got ${r.status}: "${r.body?.message}"`);
     }
 
     // Query params
@@ -220,8 +228,7 @@ function testValidation() {
     for (const [path, kw, label] of qCases) {
         const r = req('GET', path);
         assert(r.status === 400 && msgHas(r, kw),
-            `${label} → 400 + "${kw}"`,
-            `Got ${r.status}: "${r.body?.message}"`);
+            `${label} → 400 + "${kw}"`, `Got ${r.status}: "${r.body?.message}"`);
     }
 
     // Transfer body
@@ -238,8 +245,7 @@ function testValidation() {
     for (const [body, kw, label] of trCases) {
         const r = req('POST', '/transfer/send', body);
         assert(r.status === 400 && msgHas(r, kw),
-            `Transfer: ${label} → 400 + "${kw}"`,
-            `Got ${r.status}: "${r.body?.message}"`);
+            `Transfer: ${label} → 400 + "${kw}"`, `Got ${r.status}: "${r.body?.message}"`);
     }
 
     const noEmail = req('GET', '/transfer/search');
@@ -288,7 +294,7 @@ function testCleanInputs() {
     for (const id of ids) req('DELETE', `/transactions/${id}`);
 }
 
-// ─── 6. XSS in Auth Fields ───────────────────────────────────────────────────
+// ─── 6. XSS in Auth Fields ────────────────────────────────────────────────────
 function testXSSAuth() {
     section('6. XSS in Auth Fields');
 
@@ -304,8 +310,8 @@ function testXSSAuth() {
         assert(!/<script/i.test(stored),
             'XSS stripped from user name on register', `Stored: "${stored}"`);
     } else {
-        assert(xssReg.status === 400, 'XSS name rejected on register → 400',
-            xssReg.body?.message);
+        assert(xssReg.status === 400,
+            'XSS name rejected on register → 400', xssReg.body?.message);
     }
 
     const loginXss = req('POST', '/auth/login', {
