@@ -45,10 +45,13 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // Rate limiting
+const TEST_BYPASS_SECRET = process.env.TEST_BYPASS_SECRET || 'spendify-dev-test-bypass';
 const limiter = rateLimit({
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
     max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
     message: 'Too many requests from this IP, please try again later.',
+    skip: (req) => process.env.NODE_ENV === 'development' &&
+        req.headers['x-test-bypass'] === TEST_BYPASS_SECRET,
 });
 
 app.use('/api/', limiter);
