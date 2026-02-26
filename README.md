@@ -258,6 +258,27 @@ GET /api/auth/me
 Authorization: Bearer <token>
 ```
 
+#### Refresh Token
+```http
+POST /api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "your_refresh_token_hex_string"
+}
+```
+
+#### Logout
+```http
+POST /api/auth/logout
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "refreshToken": "your_refresh_token_hex_string"
+}
+```
+
 ### Transactions
 
 #### Get All Transactions
