@@ -1,5 +1,9 @@
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import User from '../models/User.js';
-import { generateToken } from '../middleware/auth.js';
+import RefreshToken from '../models/RefreshToken.js';
+import BlacklistedToken from '../models/BlacklistedToken.js';
+import { generateToken, generateFingerprint } from '../middleware/auth.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper: format minutes-remaining for a locked account
@@ -58,7 +62,19 @@ export const register = async (req, res) => {
 
         // ── Create user (password hashed by pre-save hook) ─────────────────
         const user = await User.create({ name, email, password });
-        const token = generateToken(user._id);
+        const token = generateToken(user._id, req);
+
+        // Generate Refresh Token
+        const refreshTokenStr = crypto.randomBytes(40).toString('hex');
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
+
+        await RefreshToken.create({
+            user: user._id,
+            token: refreshTokenStr,
+            expiresAt,
+            fingerprint: generateFingerprint(req)
+        });
 
         return res.status(201).json({
             success: true,
@@ -71,6 +87,7 @@ export const register = async (req, res) => {
                     balance: user.balance,
                 },
                 token,
+                refreshToken: refreshTokenStr,
             },
         });
     } catch (error) {
@@ -155,7 +172,19 @@ export const login = async (req, res) => {
 
         // ── Successful login → reset failed attempts ──────────────────────
         await user.resetFailedAttempts();
-        const token = generateToken(user._id);
+        const token = generateToken(user._id, req);
+
+        // Generate Refresh Token
+        const refreshTokenStr = crypto.randomBytes(40).toString('hex');
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
+
+        await RefreshToken.create({
+            user: user._id,
+            token: refreshTokenStr,
+            expiresAt,
+            fingerprint: generateFingerprint(req)
+        });
 
         return res.status(200).json({
             success: true,
@@ -168,6 +197,7 @@ export const login = async (req, res) => {
                     balance: user.balance,
                 },
                 token,
+                refreshToken: refreshTokenStr,
             },
         });
     } catch (error) {
@@ -186,5 +216,99 @@ export const getMe = async (req, res) => {
         return res.status(200).json({ success: true, data: user });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// @desc    Get new access token from refresh token
+// @route   POST /api/auth/refresh
+// @access  Public
+// ─────────────────────────────────────────────────────────────────────────────
+export const refreshToken = async (req, res) => {
+    try {
+        const { refreshToken } = req.body;
+        if (!refreshToken) {
+            return res.status(400).json({ success: false, message: 'Refresh token is required' });
+        }
+
+        const rt = await RefreshToken.findOne({ token: refreshToken }).populate('user');
+        if (!rt) {
+            return res.status(401).json({ success: false, message: 'Invalid refresh token' });
+        }
+
+        if (rt.revokedAt != null) {
+            return res.status(401).json({ success: false, message: 'Refresh token has been revoked' });
+        }
+
+        if (new Date() > rt.expiresAt) {
+            return res.status(401).json({ success: false, message: 'Refresh token has expired' });
+        }
+
+        // Optional: check fingerprint of refresh token
+        const currentFingerprint = generateFingerprint(req);
+        if (rt.fingerprint !== currentFingerprint) {
+            return res.status(401).json({ success: false, message: 'Refresh token fingerprint mismatch' });
+        }
+
+        // Rotate refresh token (revoke old, create new)
+        rt.revokedAt = new Date();
+        await rt.save();
+
+        const newRefreshTokenStr = crypto.randomBytes(40).toString('hex');
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 7);
+
+        await RefreshToken.create({
+            user: rt.user._id,
+            token: newRefreshTokenStr,
+            expiresAt,
+            fingerprint: currentFingerprint
+        });
+
+        const newToken = generateToken(rt.user._id, req);
+        return res.status(200).json({
+            success: true,
+            message: 'Token refreshed successfully',
+            data: {
+                token: newToken,
+                refreshToken: newRefreshTokenStr
+            }
+        });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: 'Server error during token refresh' });
+    }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// @desc    Logout user & blacklist token
+// @route   POST /api/auth/logout
+// @access  Private
+// ─────────────────────────────────────────────────────────────────────────────
+export const logout = async (req, res) => {
+    try {
+        // Blacklist current access token
+        const token = req.token;
+        const decodedToken = req.decodedToken;
+
+        if (token && decodedToken) {
+            await BlacklistedToken.create({
+                token,
+                expiresAt: new Date(decodedToken.exp * 1000)
+            });
+        }
+
+        // Revoke the refresh token if provided
+        const { refreshToken } = req.body;
+        if (refreshToken) {
+            const rt = await RefreshToken.findOne({ token: refreshToken });
+            if (rt) {
+                rt.revokedAt = new Date();
+                await rt.save();
+            }
+        }
+
+        return res.status(200).json({ success: true, message: 'Logged out successfully' });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: 'Server error during logout' });
     }
 };
