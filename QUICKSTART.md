@@ -228,6 +228,8 @@ npm run dev:full
 - `POST /api/auth/register` - Register user
 - `POST /api/auth/login` - Login user
 - `GET /api/auth/me` - Get current user
+- `POST /api/auth/refresh` - Refresh access token
+- `POST /api/auth/logout` - Logout and blacklist token
 
 ### Transactions
 - `GET /api/transactions` - Get all transactions
