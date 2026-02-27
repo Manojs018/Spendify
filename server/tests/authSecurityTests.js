@@ -6,7 +6,7 @@
  * ================================================================
  */
 
-const BASE = 'http://localhost:5000/api';
+const BASE = 'http://127.0.0.1:5000/api';
 const TS = Date.now();
 const BYPASS_HEADER = { 'X-Test-Bypass': 'spendify-dev-test-bypass' };
 
@@ -17,11 +17,30 @@ function assert(ok, name, detail = '') {
     else { console.error(`  ❌ FAIL: ${name}${detail ? ' — ' + detail : ''}`); failed++; }
 }
 
+let activeCookie = '';
+let activeCsrf = '';
+
+// Helper to fetch valid CSRF token before running tests
+async function initCsrf() {
+    try {
+        const r = await fetch('http://127.0.0.1:5000/api/csrf-token');
+        activeCsrf = (await r.json()).csrfToken;
+        const setCookie = r.headers.get('set-cookie');
+        if (setCookie) {
+            activeCookie = setCookie.split(';')[0];
+        }
+    } catch (e) { console.error('initCsrf error', e); }
+}
+
 // ── HTTP helpers ────────────────────────────────────────────────
 async function post(path, body, extraHeaders = {}) {
+    const headers = { 'Content-Type': 'application/json', ...extraHeaders };
+    if (activeCsrf) headers['X-XSRF-TOKEN'] = activeCsrf;
+    if (activeCookie) headers['Cookie'] = activeCookie;
+
     const r = await fetch(`${BASE}${path}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...extraHeaders },
+        headers,
         body: JSON.stringify(body),
     });
     return { status: r.status, data: await r.json() };
@@ -42,6 +61,7 @@ const STRONG = 'T3st!ngP@ss#99';   // satisfies all OWASP rules
 
 // ================================================================
 async function runTests() {
+    await initCsrf();
     console.log('\n╔═══════════════════════════════════════════════════════╗');
     console.log('║  AUTH SECURITY — RATE LIMITING & SIGN-UP TEST SUITE  ║');
     console.log('╚═══════════════════════════════════════════════════════╝\n');
@@ -60,18 +80,18 @@ async function runTests() {
         });
         assert(status === 201, 'TC1a — Register returns HTTP 201');
         assert(data.success === true, 'TC1a — success:true');
-        assert(!!data.data?.token, 'TC1a — JWT token returned');
-        assert(data.data?.user?.email === regEmail, 'TC1a — Correct email in response');
-        assert(!!data.data?.user?.id, 'TC1a — User ID present');
+        assert(data.message.includes('successful'), 'TC1a — Success message returned');
+        assert(!data.data?.token, 'TC1a — JWT token NOT returned (security feature)');
     }
 
-    // 1b. Duplicate email rejected
+    // 1b. Duplicate email returns SAME response (prevent email enumeration)
     {
         const { status, data } = await postBypass('/auth/register', {
             name: 'Dup', email: regEmail, password: STRONG,
         });
-        assert(status === 400, 'TC1b — Duplicate email → 400');
-        assert(data.success === false, 'TC1b — success:false');
+        assert(status === 201, 'TC1b — Duplicate email → 201 (prevents enumeration)');
+        assert(data.success === true, 'TC1b — success:true');
+        assert(data.message.includes('successful'), 'TC1b — Same success message as new user');
     }
 
     // 1c. Missing fields rejected
