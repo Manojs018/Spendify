@@ -306,14 +306,17 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (response.success) {
-                setToken(response.data.token);
-                setUser(response.data.user);
+                showToast(response.message || 'Registration successful! Please login.', 'success');
 
-                showToast('Registration successful! Redirecting...', 'success');
+                // Clear the registration form and reset password UI
+                registerFormElement.reset();
+                resetStrengthUI();
 
                 setTimeout(() => {
-                    window.location.href = 'dashboard.html';
-                }, 1000);
+                    registerForm.style.display = 'none';
+                    loginForm.style.display = 'block';
+                    hideLoading(submitButton);
+                }, 1500);
             }
         } catch (error) {
             showToast(error.message || 'Registration failed', 'error');
