@@ -7,11 +7,14 @@ import rateLimit from 'express-rate-limit';
 import connectDB from './config/db.js';
 import errorHandler from './middleware/errorHandler.js';
 import { sanitizeBody } from './middleware/sanitize.js';
+import { csrfProtection } from './middleware/csrf.js';
 import authRoutes from './routes/authRoutes.js';
 import transactionRoutes from './routes/transactionRoutes.js';
 import cardRoutes from './routes/cardRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 import transferRoutes from './routes/transferRoutes.js';
+import csrfRoutes from './routes/csrfRoutes.js';
+import cookieParser from 'cookie-parser';
 
 // Load env vars
 dotenv.config();
@@ -36,8 +39,14 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Cookie parser for reading tokens
+app.use(cookieParser());
+
 // Input sanitization – XSS & NoSQL injection protection (applied globally)
 app.use(sanitizeBody);
+
+// CSRF Protection
+app.use(csrfProtection);
 
 // Logging middleware
 if (process.env.NODE_ENV === 'development') {
@@ -71,6 +80,7 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/cards', cardRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/transfer', transferRoutes);
+app.use('/api/csrf-token', csrfRoutes);
 
 // Welcome route
 app.get('/', (req, res) => {
@@ -82,6 +92,7 @@ app.get('/', (req, res) => {
         endpoints: {
             health: '/health',
             auth: '/api/auth',
+            csrfToken: '/api/csrf-token',
             transactions: '/api/transactions',
             cards: '/api/cards',
             analytics: '/api/analytics',
