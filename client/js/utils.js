@@ -85,6 +85,25 @@ function logout() {
     window.location.href = 'index.html';
 }
 
+let storedCsrfToken = null;
+
+// Get CSRF token from cookie or API
+async function getCsrfToken() {
+    let token = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/);
+    if (token) return token[1];
+
+    if (storedCsrfToken) return storedCsrfToken;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/csrf-token`, { method: 'GET', credentials: 'include' });
+        const data = await response.json();
+        storedCsrfToken = data.csrfToken;
+        return storedCsrfToken;
+    } catch {
+        return null;
+    }
+}
+
 // API request helper
 async function apiRequest(url, options = {}) {
     const token = getToken();
@@ -93,10 +112,18 @@ async function apiRequest(url, options = {}) {
         headers: {
             'Content-Type': 'application/json',
         },
+        credentials: 'include', // Include credentials to send XSRF-TOKEN cookie back
     };
 
     if (token) {
         defaultOptions.headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    // Attach CSRF token if it's a state-changing method
+    const method = options.method ? options.method.toUpperCase() : 'GET';
+    const csrfToken = await getCsrfToken();
+    if (csrfToken && method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
+        defaultOptions.headers['X-XSRF-TOKEN'] = csrfToken;
     }
 
     const finalOptions = {
