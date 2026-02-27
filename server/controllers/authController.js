@@ -30,12 +30,13 @@ export const register = async (req, res) => {
             });
         }
 
-        // ── Duplicate email ────────────────────────────────────────────────
+        // ── Check if email exists (prevent enumeration by returning fake success) ──
         const userExists = await User.findOne({ email });
         if (userExists) {
-            return res.status(400).json({
-                success: false,
-                message: 'An account with this email already exists',
+            // Do NOT reveal that the email exists. Pretend it was created.
+            return res.status(201).json({
+                success: true,
+                message: 'Registration successful! Please log in.',
             });
         }
 
@@ -62,33 +63,10 @@ export const register = async (req, res) => {
 
         // ── Create user (password hashed by pre-save hook) ─────────────────
         const user = await User.create({ name, email, password });
-        const token = generateToken(user._id, req);
-
-        // Generate Refresh Token
-        const refreshTokenStr = crypto.randomBytes(40).toString('hex');
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
-
-        await RefreshToken.create({
-            user: user._id,
-            token: refreshTokenStr,
-            expiresAt,
-            fingerprint: generateFingerprint(req)
-        });
 
         return res.status(201).json({
             success: true,
-            message: 'Account created successfully',
-            data: {
-                user: {
-                    id: user._id,
-                    name: user.name,
-                    email: user.email,
-                    balance: user.balance,
-                },
-                token,
-                refreshToken: refreshTokenStr,
-            },
+            message: 'Registration successful! Please log in.',
         });
     } catch (error) {
         // Mongoose validation errors → expose the first message clearly
