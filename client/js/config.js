@@ -1,5 +1,22 @@
-// API Configuration
-const API_BASE_URL = 'http://localhost:5000/api';
+// Environment-aware API Configuration
+const getApiBaseUrl = () => {
+    const { hostname, port, protocol } = window.location;
+
+    // Development environment (local frontend servers like serve, Live Server, etc.)
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        // If frontend is on a different port like 3000, connect to backend on 5000
+        // If they are on the same port, use relative path
+        if (port === '3000' || port === '5500' || port === '8080') {
+            return `${protocol}//${hostname}:5000/api`;
+        }
+        return '/api';
+    }
+
+    // Production environment (relative path so it works seamlessly on any domain/proxy)
+    return '/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 // API Endpoints
 const API_ENDPOINTS = {
