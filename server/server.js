@@ -2,6 +2,8 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import connectDB from './config/db.js';
@@ -100,6 +102,21 @@ app.get('/', (req, res) => {
         },
     });
 });
+
+// Serve frontend static files in production
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+if (process.env.NODE_ENV === 'production') {
+    app.use(express.static(path.join(__dirname, '../client')));
+
+    app.get('*', (req, res, next) => {
+        if (req.url.startsWith('/api')) {
+            return next();
+        }
+        res.sendFile(path.resolve(__dirname, '../client', 'index.html'));
+    });
+}
 
 // Error handler (must be last)
 app.use(errorHandler);
