@@ -52,9 +52,16 @@ const cardSchema = new mongoose.Schema(
     }
 );
 
-// Index for user's cards
-cardSchema.index({ userId: 1 });
-cardSchema.index({ userId: 1, lastFourDigits: 1 });
+// ── Indexes ───────────────────────────────────────────────────────────────────
+
+// Primary cards fetch: { userId } filtered by { isActive: true } (most common)
+cardSchema.index({ userId: 1, isActive: 1 }, { name: 'card_userId_isActive' });
+
+// Lookup by last-four digits: GET /api/cards (display-safe search)
+cardSchema.index({ userId: 1, lastFourDigits: 1 }, { name: 'card_userId_lastFour' });
+
+// Card-type filtering: useful for payment-method breakdowns
+cardSchema.index({ userId: 1, cardType: 1 }, { name: 'card_userId_cardType' });
 
 // Virtual for masked card number (for display)
 cardSchema.virtual('maskedNumber').get(function () {
