@@ -12,7 +12,13 @@ const blacklistedTokenSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-blacklistedTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 }); // Auto-remove expired tokens
+// ── Indexes ───────────────────────────────────────────────────────────────────
+
+// Token eligibility check – every authenticated request checks this collection
+blacklistedTokenSchema.index({ token: 1 }, { unique: true, name: 'bt_token_unique' });
+
+// TTL index – auto-purge expired blacklist entries to keep the collection tiny
+blacklistedTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0, name: 'bt_ttl' });
 
 const BlacklistedToken = mongoose.model('BlacklistedToken', blacklistedTokenSchema);
 export default BlacklistedToken;
