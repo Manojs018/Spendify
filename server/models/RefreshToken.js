@@ -25,7 +25,16 @@ const refreshTokenSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-refreshTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+// ── Indexes ───────────────────────────────────────────────────────────────────
+
+// TTL index – MongoDB auto-removes expired tokens (keeps the collection clean)
+refreshTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0, name: 'rt_ttl' });
+
+// Token lookup – used in refresh, logout, and validation paths
+refreshTokenSchema.index({ token: 1 }, { unique: true, name: 'rt_token_unique' });
+
+// Active-token-for-user lookup: { user, revokedAt: null } – checking existing sessions
+refreshTokenSchema.index({ user: 1, revokedAt: 1 }, { name: 'rt_user_revokedAt' });
 
 // Add a check to verify if valid
 refreshTokenSchema.virtual('isValid').get(function () {
