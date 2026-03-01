@@ -221,7 +221,9 @@ function testValidation() {
     const qCases = [
         ['/transactions?sort=__proto__', 'Sort', 'Prototype-polluting sort'],
         ['/transactions?page=-1', 'Page', 'Negative page'],
+        ['/transactions?page=0', 'Page', 'Zero page'],
         ['/transactions?limit=999', 'Limit', 'Limit > 100'],
+        ['/transactions?limit=0', 'Limit', 'Limit = 0'],
         ['/transactions?month=13&year=2024', 'Month', 'Month out of range'],
         ['/transactions?year=1999', 'Year', 'Year out of range'],
     ];
@@ -253,6 +255,68 @@ function testValidation() {
 
     const longEmail = req('GET', `/transfer/search?email=${'a'.repeat(101)}`);
     assert(longEmail.status === 400, 'Transfer search: 101-char email → 400', longEmail.body?.message);
+}
+
+// ─── 7. DoS – Pagination Enforcement ──────────────────────────────────────────
+function testPaginationDoS() {
+    section('7. DoS – Pagination Limit Enforcement');
+
+    // ── /transactions ────────────────────────────────────────────────────────────
+    const txPaginationCases = [
+        // Limit attacks
+        ['/transactions?limit=101', 'Limit', 'limit=101 (just over max)'],
+        ['/transactions?limit=999', 'Limit', 'limit=999 (large)'],
+        ['/transactions?limit=99999999', 'Limit', 'limit=99999999 (gigantic)'],
+        ['/transactions?limit=0', 'Limit', 'limit=0 (below min)'],
+        ['/transactions?limit=-1', 'Limit', 'limit=-1 (negative)'],
+        ['/transactions?limit=abc', 'Limit', 'limit=abc (non-numeric)'],
+        ['/transactions?limit=1.5', 'Limit', 'limit=1.5 (float)'],
+        // Page attacks
+        ['/transactions?page=0', 'Page', 'page=0 (below min)'],
+        ['/transactions?page=-1', 'Page', 'page=-1 (negative)'],
+        ['/transactions?page=-999', 'Page', 'page=-999 (large negative)'],
+        ['/transactions?page=abc', 'Page', 'page=abc (non-numeric)'],
+        ['/transactions?page=1.9', 'Page', 'page=1.9 (float)'],
+    ];
+    for (const [path, kw, label] of txPaginationCases) {
+        const r = req('GET', path);
+        assert(
+            r.status === 400 && msgHas(r, kw),
+            `TX: ${label} → 400 + "${kw}"`,
+            `Got ${r.status}: "${r.body?.message}"`
+        );
+    }
+
+    // ── /transfer/history ────────────────────────────────────────────────────────
+    const trPaginationCases = [
+        ['/transfer/history?limit=101', 'Limit', 'transfer limit=101'],
+        ['/transfer/history?limit=0', 'Limit', 'transfer limit=0'],
+        ['/transfer/history?limit=-5', 'Limit', 'transfer limit=-5 (negative)'],
+        ['/transfer/history?limit=99999', 'Limit', 'transfer limit=99999 (gigantic)'],
+        ['/transfer/history?page=0', 'Page', 'transfer page=0'],
+        ['/transfer/history?page=-1', 'Page', 'transfer page=-1'],
+    ];
+    for (const [path, kw, label] of trPaginationCases) {
+        const r = req('GET', path);
+        assert(
+            r.status === 400 && msgHas(r, kw),
+            `TR: ${label} → 400 + "${kw}"`,
+            `Got ${r.status}: "${r.body?.message}"`
+        );
+    }
+
+    // ── Happy path: valid pagination values must still work ──────────────────────
+    const validCases = [
+        ['/transactions?page=1&limit=1', 'TX: page=1 limit=1 (minimum valid)'],
+        ['/transactions?page=1&limit=100', 'TX: page=1 limit=100 (maximum valid)'],
+        ['/transactions?page=5&limit=50', 'TX: page=5 limit=50 (typical)'],
+        ['/transfer/history?page=1&limit=1', 'TR: page=1 limit=1'],
+        ['/transfer/history?page=1&limit=100', 'TR: page=1 limit=100 (max)'],
+    ];
+    for (const [path, label] of validCases) {
+        const r = req('GET', path);
+        assert(r.status === 200, `${label} → 200`, `Got ${r.status}: "${r.body?.message}"`);
+    }
 }
 
 // ─── 5. Clean Inputs Pass Through ─────────────────────────────────────────────
@@ -337,6 +401,7 @@ try {
     testValidation();
     testCleanInputs();
     testXSSAuth();
+    testPaginationDoS();
 } catch (e) {
     console.error(`\n${R}Unexpected error:${X}`, e.message);
 }
