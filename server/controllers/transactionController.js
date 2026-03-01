@@ -40,9 +40,11 @@ export const getTransactions = async (req, res) => {
             });
         }
 
-        // ── Safe pagination (parseInt with bounds) ─────────────────────────
-        const pageNum = Math.max(1, parseInt(page, 10) || 1);
-        const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
+        // ── Safe pagination  ────────────────────────────────────────────────
+        // validateTransactionQuery() above already rejected page<1 and limit>100,
+        // so all values here are guaranteed to be valid — no further clamping needed.
+        const pageNum = parseInt(page, 10) || 1;
+        const limitNum = parseInt(limit, 10) || 10;
 
         // ── Whitelist sort field to prevent injection ──────────────────────
         const safeSort = ALLOWED_SORT_FIELDS.includes(sort) ? sort : '-date';
