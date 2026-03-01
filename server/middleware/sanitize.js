@@ -173,6 +173,15 @@ export function validateAmount(value, { min = 0.01, max = 1_000_000 } = {}) {
     return null;
 }
 
+// ─── Pagination constants (single source of truth) ──────────────────────────
+export const PAGINATION = {
+    MAX_LIMIT: 100,  // maximum records per page
+    MIN_LIMIT: 1,    // minimum records per page
+    DEFAULT_LIMIT: 10, // default if omitted
+    MIN_PAGE: 1,    // pages are 1-indexed
+    DEFAULT_PAGE: 1,
+};
+
 const VALID_TRANSACTION_TYPES = ['income', 'expense'];
 const VALID_SORT_FIELDS = [
     'date', '-date', 'amount', '-amount',
@@ -226,6 +235,41 @@ export function validateTransactionBody({ amount, type, category, description, d
 }
 
 /**
+ * Validate page and limit pagination parameters.
+ * Enforces:
+ *   - page  ≥ PAGINATION.MIN_PAGE  (1)
+ *   - limit ≥ PAGINATION.MIN_LIMIT (1) and ≤ PAGINATION.MAX_LIMIT (100)
+ *
+ * Returns an array of error strings (empty array = valid).
+ *
+ * @param {{ page?: any, limit?: any }} params
+ * @returns {string[]}
+ */
+export function validatePagination({ page, limit } = {}) {
+    const errors = [];
+
+    if (page !== undefined && page !== null && page !== '') {
+        const p = parseInt(page, 10);
+        if (!Number.isInteger(p) || isNaN(p) || p < PAGINATION.MIN_PAGE) {
+            errors.push(
+                `Page must be a positive integer (minimum ${PAGINATION.MIN_PAGE}). Received: "${page}"`
+            );
+        }
+    }
+
+    if (limit !== undefined && limit !== null && limit !== '') {
+        const l = parseInt(limit, 10);
+        if (!Number.isInteger(l) || isNaN(l) || l < PAGINATION.MIN_LIMIT || l > PAGINATION.MAX_LIMIT) {
+            errors.push(
+                `Limit must be an integer between ${PAGINATION.MIN_LIMIT} and ${PAGINATION.MAX_LIMIT}. Received: "${limit}"`
+            );
+        }
+    }
+
+    return errors;
+}
+
+/**
  * Validate query params for GET /transactions.
  * Returns array of error strings.
  */
@@ -258,19 +302,8 @@ export function validateTransactionQuery({ type, category, month, year, search, 
         errors.push('Search term must be 100 characters or fewer');
     }
 
-    if (page !== undefined) {
-        const p = parseInt(page, 10);
-        if (!Number.isInteger(p) || p < 1) {
-            errors.push('Page must be a positive integer');
-        }
-    }
-
-    if (limit !== undefined) {
-        const l = parseInt(limit, 10);
-        if (!Number.isInteger(l) || l < 1 || l > 100) {
-            errors.push('Limit must be an integer between 1 and 100');
-        }
-    }
+    // ── Pagination (delegated to shared validator) ────────────────────────────
+    errors.push(...validatePagination({ page, limit }));
 
     if (sort && !VALID_SORT_FIELDS.includes(sort)) {
         errors.push(`Sort must be one of: ${VALID_SORT_FIELDS.join(', ')}`);
@@ -320,4 +353,13 @@ export function validateSearchQuery({ email }) {
         errors.push('Email search term must be 100 characters or fewer');
     }
     return errors;
+}
+
+/**
+ * Validate pagination query params for GET /transfer/history (and any future
+ * paginated endpoint that doesn't have richer query filters).
+ * Returns array of error strings.
+ */
+export function validateTransferQuery({ page, limit } = {}) {
+    return validatePagination({ page, limit });
 }
