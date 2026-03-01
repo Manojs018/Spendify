@@ -363,3 +363,38 @@ export function validateSearchQuery({ email }) {
 export function validateTransferQuery({ page, limit } = {}) {
     return validatePagination({ page, limit });
 }
+
+/**
+ * Validate query params for analytics endpoints.
+ * Returns array of error strings.
+ */
+export function validateAnalyticsQuery({ year, month, type, months } = {}) {
+    const errors = [];
+
+    if (year !== undefined && year !== null && year !== '') {
+        const y = parseInt(year, 10);
+        if (!Number.isInteger(y) || y < 2000 || y > 2100) {
+            errors.push('Year must be an integer between 2000 and 2100');
+        }
+    }
+
+    if (month !== undefined && month !== null && month !== '') {
+        const m = parseInt(month, 10);
+        if (!Number.isInteger(m) || m < 1 || m > 12) {
+            errors.push('Month must be an integer between 1 and 12');
+        }
+    }
+
+    if (type && !['income', 'expense'].includes(type)) {
+        errors.push('Type filter must be one of: income, expense');
+    }
+
+    if (months !== undefined && months !== null && months !== '') {
+        const m = parseInt(months, 10);
+        if (!Number.isInteger(m) || m < 1 || m > 12) {
+            errors.push('Months parameter must be an integer between 1 and 12');
+        }
+    }
+
+    return errors;
+}
