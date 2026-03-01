@@ -1,5 +1,6 @@
 import Transaction from '../models/Transaction.js';
 import User from '../models/User.js';
+import { validateAnalyticsQuery } from '../middleware/sanitize.js';
 
 // @desc    Get monthly analytics
 // @route   GET /api/analytics/monthly
@@ -7,6 +8,16 @@ import User from '../models/User.js';
 export const getMonthlyAnalytics = async (req, res) => {
     try {
         const { year = new Date().getFullYear(), month = new Date().getMonth() + 1 } = req.query;
+
+        // ── Validate Query ──────────────────────────────────────────────────
+        const queryErrors = validateAnalyticsQuery({ year, month });
+        if (queryErrors.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: queryErrors[0],
+                errors: queryErrors,
+            });
+        }
 
         const startDate = new Date(year, month - 1, 1);
         const endDate = new Date(year, month, 0, 23, 59, 59);
@@ -78,6 +89,16 @@ export const getMonthlyAnalytics = async (req, res) => {
 export const getCategoryAnalytics = async (req, res) => {
     try {
         const { year = new Date().getFullYear(), month, type } = req.query;
+
+        // ── Validate Query ──────────────────────────────────────────────────
+        const queryErrors = validateAnalyticsQuery({ year, month, type });
+        if (queryErrors.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: queryErrors[0],
+                errors: queryErrors,
+            });
+        }
 
         // Build date filter
         let dateFilter = {};
@@ -153,6 +174,16 @@ export const getTrends = async (req, res) => {
     try {
         const { year = new Date().getFullYear(), months = 6 } = req.query;
 
+        // ── Validate Query ──────────────────────────────────────────────────
+        const queryErrors = validateAnalyticsQuery({ year, months });
+        if (queryErrors.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: queryErrors[0],
+                errors: queryErrors,
+            });
+        }
+
         const trends = [];
         const currentMonth = new Date().getMonth();
 
@@ -225,16 +256,24 @@ export const getDashboardSummary = async (req, res) => {
             .filter((t) => t.type === 'expense')
             .reduce((sum, t) => sum + t.amount, 0);
 
-        // Get all-time totals
-        const allTransactions = await Transaction.find({ userId: req.user.id });
+        // ── Get all-time totals via aggregation (Do NOT fetch all docs) ───────
+        const totals = await Transaction.aggregate([
+            { $match: { userId: req.user._id } },
+            {
+                $group: {
+                    _id: null,
+                    totalIncome: {
+                        $sum: { $cond: [{ $eq: ['$type', 'income'] }, '$amount', 0] }
+                    },
+                    totalExpense: {
+                        $sum: { $cond: [{ $eq: ['$type', 'expense'] }, '$amount', 0] }
+                    }
+                }
+            }
+        ]);
 
-        const totalIncome = allTransactions
-            .filter((t) => t.type === 'income')
-            .reduce((sum, t) => sum + t.amount, 0);
-
-        const totalExpense = allTransactions
-            .filter((t) => t.type === 'expense')
-            .reduce((sum, t) => sum + t.amount, 0);
+        const totalIncome = totals.length > 0 ? totals[0].totalIncome : 0;
+        const totalExpense = totals.length > 0 ? totals[0].totalExpense : 0;
 
         // Get recent transactions
         const recentTransactions = await Transaction.find({ userId: req.user.id })
