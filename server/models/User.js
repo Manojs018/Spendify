@@ -63,6 +63,20 @@ const userSchema = new mongoose.Schema(
     }
 );
 
+// ── Indexes ───────────────────────────────────────────────────────────────────
+// Email is unique via the schema option, but an explicit index makes the
+// intent clear and enables query-plan caching for login / register lookups.
+userSchema.index({ email: 1 }, { unique: true, name: 'user_email_unique' });
+
+// Partial index on lockUntil – only indexes documents that are actually locked,
+// keeping the index tiny while still accelerating account-lockout checks.
+// NOTE: MongoDB does not allow combining 'sparse' and 'partialFilterExpression'
+// so we use only partialFilterExpression here.
+userSchema.index(
+    { lockUntil: 1 },
+    { partialFilterExpression: { lockUntil: { $type: 'date' } }, name: 'user_lockUntil_partial' }
+);
+
 // ── Virtual: is the account currently locked? ─────────────────────
 userSchema.virtual('isLocked').get(function () {
     return this.lockUntil && this.lockUntil > Date.now();
