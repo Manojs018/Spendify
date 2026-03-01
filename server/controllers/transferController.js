@@ -3,6 +3,7 @@ import Transaction from '../models/Transaction.js';
 import {
     escapeRegex,
     validateTransferBody,
+    validateTransferQuery,
     validateSearchQuery,
     stripXSS,
 } from '../middleware/sanitize.js';
@@ -162,9 +163,20 @@ export const getTransferHistory = async (req, res) => {
     try {
         const { page = 1, limit = 10 } = req.query;
 
-        // ── Safe pagination bounds ─────────────────────────────────────────
-        const pageNum = Math.max(1, parseInt(page, 10) || 1);
-        const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
+        // ── Validate pagination params ──────────────────────────────────────
+        // validateTransferQuery rejects page < 1 or limit > 100 with a clear
+        // HTTP 400 error and descriptive message — no silent clamping here.
+        const paginationErrors = validateTransferQuery({ page, limit });
+        if (paginationErrors.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: paginationErrors[0],
+                errors: paginationErrors,
+            });
+        }
+
+        const pageNum = parseInt(page, 10) || 1;
+        const limitNum = parseInt(limit, 10) || 10;
 
         const transfers = await Transaction.find({
             userId: req.user.id,
