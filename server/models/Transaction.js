@@ -41,10 +41,25 @@ const transactionSchema = new mongoose.Schema(
     }
 );
 
-// Index for faster queries
+// ── Compound Indexes (optimised for real query shapes) ────────────────────
+
+// Primary list/pagination query: GET /api/transactions?sort=-date (most common)
 transactionSchema.index({ userId: 1, date: -1 });
-transactionSchema.index({ userId: 1, type: 1 });
-transactionSchema.index({ userId: 1, category: 1 });
+
+// Type-filtered queries: GET /api/transactions?type=expense&sort=-date
+transactionSchema.index({ userId: 1, type: 1, date: -1 });
+
+// Category-filtered queries: GET /api/transactions?category=food&sort=-date
+transactionSchema.index({ userId: 1, category: 1, date: -1 });
+
+// Analytics monthly/range queries: { userId, date: {$gte, $lte} }
+transactionSchema.index({ userId: 1, date: 1 });
+
+// Analytics aggregation match: { userId, type, date: {$gte, $lte} }
+transactionSchema.index({ userId: 1, type: 1, date: 1 });
+
+// Amount-based sort queries: GET /api/transactions?sort=amount or -amount
+transactionSchema.index({ userId: 1, amount: -1 });
 
 const Transaction = mongoose.model('Transaction', transactionSchema);
 
