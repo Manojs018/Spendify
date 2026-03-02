@@ -271,3 +271,44 @@ function hideLoading(button) {
     if (loader) loader.style.display = 'none';
     button.disabled = false;
 }
+
+// Get skeleton HTML
+function getSkeletonHTML(type, count = 1) {
+    let html = '';
+    for (let i = 0; i < count; i++) {
+        switch (type) {
+            case 'list-item':
+                html += `
+          <div class="skeleton-item">
+            <div class="skeleton skeleton-circle"></div>
+            <div style="flex: 1;">
+              <div class="skeleton skeleton-title" style="width: 40%;"></div>
+              <div class="skeleton skeleton-text" style="width: 70%;"></div>
+            </div>
+            <div style="width: 60px;">
+              <div class="skeleton skeleton-text" style="width: 100%;"></div>
+              <div class="skeleton skeleton-text" style="width: 60%; margin-left: auto;"></div>
+            </div>
+          </div>
+        `;
+                break;
+            case 'card':
+                html += `
+          <div class="skeleton skeleton-card" style="margin-bottom: var(--space-md);"></div>
+        `;
+                break;
+            case 'category':
+                html += `
+          <div style="margin-bottom: var(--space-md);">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <div class="skeleton skeleton-text" style="width: 30%;"></div>
+              <div class="skeleton skeleton-text" style="width: 15%;"></div>
+            </div>
+            <div class="skeleton skeleton-text" style="height: 8px;"></div>
+          </div>
+        `;
+                break;
+        }
+    }
+    return html;
+}
