@@ -8,15 +8,17 @@ import {
 } from '../controllers/transactionController.js';
 import { protect } from '../middleware/auth.js';
 
+import { cacheMiddleware } from '../middleware/cache.js';
+
 const router = express.Router();
 
 router.use(protect); // All routes are protected
 
-router.route('/').get(getTransactions).post(createTransaction);
+router.route('/').get(cacheMiddleware('transactions'), getTransactions).post(createTransaction);
 
 router
     .route('/:id')
-    .get(getTransaction)
+    .get(cacheMiddleware('transactions'), getTransaction)
     .put(updateTransaction)
     .delete(deleteTransaction);
 
