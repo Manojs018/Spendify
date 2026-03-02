@@ -51,6 +51,18 @@
     margin: 0;
 }
 
+.dashboard-content {
+    flex: 1;
+    padding: var(--space-xl);
+    overflow-y: auto;
+    animation: fadeIn 0.4s ease-out;
+}
+
+.dashboard-section {
+    display: none;
+    animation: fadeIn 0.3s ease-out;
+}
+
 .sidebar-nav {
     flex: 1;
     padding: var(--space-lg);
