@@ -1,5 +1,6 @@
 import Card from '../models/Card.js';
 import Transaction from '../models/Transaction.js';
+import { invalidateUserCache } from '../middleware/cache.js';
 
 // @desc    Get all cards for user
 // @route   GET /api/cards
@@ -103,6 +104,10 @@ export const createCard = async (req, res) => {
         // Save the card (encrypted)
         await card.save();
 
+        // Invalidate cache
+        await invalidateUserCache(req.user.id, 'cards');
+        await invalidateUserCache(req.user.id, 'analytics');
+
         res.status(201).json({
             success: true,
             message: 'Card added successfully',
@@ -164,6 +169,10 @@ export const updateCard = async (req, res) => {
         Object.assign(card, updates);
         await card.save();
 
+        // Invalidate cache
+        await invalidateUserCache(req.user.id, 'cards');
+        await invalidateUserCache(req.user.id, 'analytics');
+
         res.status(200).json({
             success: true,
             message: 'Card updated successfully',
@@ -202,6 +211,10 @@ export const deleteCard = async (req, res) => {
         // Soft delete - mark as inactive
         card.isActive = false;
         await card.save();
+
+        // Invalidate cache
+        await invalidateUserCache(req.user.id, 'cards');
+        await invalidateUserCache(req.user.id, 'analytics');
 
         res.status(200).json({
             success: true,
@@ -309,7 +322,7 @@ export const transferBetweenCards = async (req, res) => {
                 amount,
                 type: 'expense',
                 category: 'Transfer',
-                description: `Transfer to card ending in ${toCard.lastFourDigits}`,
+                description: `Transfer to card ending in ${toCard.lastFourDigits} `,
                 date: Date.now(),
             });
 
@@ -318,7 +331,7 @@ export const transferBetweenCards = async (req, res) => {
                 amount,
                 type: 'income',
                 category: 'Transfer',
-                description: `Transfer from card ending in ${fromCard.lastFourDigits}`,
+                description: `Transfer from card ending in ${fromCard.lastFourDigits} `,
                 date: Date.now(),
             });
         } catch (error) {
@@ -345,6 +358,11 @@ export const transferBetweenCards = async (req, res) => {
                 amount,
             },
         });
+
+        // Invalidate cache
+        await invalidateUserCache(req.user.id, 'cards');
+        await invalidateUserCache(req.user.id, 'transactions');
+        await invalidateUserCache(req.user.id, 'analytics');
     } catch (error) {
         res.status(500).json({
             success: false,
