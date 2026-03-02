@@ -63,6 +63,16 @@ async function loadUserData() {
 // ===================================
 
 async function loadDashboardData() {
+    // Show skeletons
+    document.getElementById('recentTransactions').innerHTML = getSkeletonHTML('list-item', 5);
+    document.getElementById('topCategories').innerHTML = getSkeletonHTML('category', 4);
+
+    // Stats skeletons
+    const statValues = ['totalBalance', 'monthlyIncome', 'monthlyExpense', 'monthlyBalance'];
+    statValues.forEach(id => {
+        document.getElementById(id).innerHTML = '<div class="skeleton skeleton-text" style="width: 80px; height: 24px; margin: 0 auto;"></div>';
+    });
+
     try {
         const response = await apiRequest(API_ENDPOINTS.analyticsSummary);
 
@@ -159,6 +169,7 @@ function displayTopCategories(categoriesData) {
 }
 
 async function loadCards() {
+    document.getElementById('myCards').innerHTML = getSkeletonHTML('card', 1);
     try {
         const response = await apiRequest(API_ENDPOINTS.cards);
 
@@ -498,7 +509,7 @@ async function handleCardSubmit(e) {
 
 async function loadAllTransactions() {
     const container = document.getElementById('allTransactions');
-    container.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>Loading...</p></div>';
+    container.innerHTML = getSkeletonHTML('list-item', 8);
 
     try {
         const type = document.getElementById('filterType')?.value || '';
@@ -557,8 +568,13 @@ function displayAllTransactions(transactionsData) {
             <p class="transaction-date">${formatDate(transaction.date)}</p>
           </div>
           <div style="display: flex; gap: 8px;">
-            <button class="btn btn-sm btn-secondary" onclick='editTransaction(${JSON.stringify(transaction)})'>Edit</button>
-            <button class="btn btn-sm btn-danger" onclick="deleteTransaction('${transaction._id}')">Delete</button>
+            <button class="btn btn-sm btn-secondary" onclick='editTransaction(${JSON.stringify(transaction)})'>
+              <span>Edit</span>
+            </button>
+            <button class="btn btn-sm btn-danger" onclick="deleteTransaction(event, '${transaction._id}')">
+              <span>Delete</span>
+              <span class="btn-loader" style="display: none;"><span class="spinner"></span></span>
+            </button>
           </div>
         </div>
       `).join('')}
@@ -570,8 +586,11 @@ function editTransaction(transaction) {
     openTransactionModal(transaction.type, transaction);
 }
 
-async function deleteTransaction(id) {
+async function deleteTransaction(e, id) {
     if (!confirm('Are you sure you want to delete this transaction?')) return;
+
+    const btn = e.currentTarget;
+    showLoading(btn);
 
     try {
         const response = await apiRequest(API_ENDPOINTS.transaction(id), {
@@ -587,6 +606,8 @@ async function deleteTransaction(id) {
         }
     } catch (error) {
         showToast(error.message, 'error');
+    } finally {
+        hideLoading(btn);
     }
 }
 
@@ -596,7 +617,7 @@ async function deleteTransaction(id) {
 
 async function loadAllCards() {
     const container = document.getElementById('allCards');
-    container.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>Loading...</p></div>';
+    container.innerHTML = getSkeletonHTML('card', 2);
 
     try {
         const response = await apiRequest(API_ENDPOINTS.cards);
@@ -647,7 +668,12 @@ function displayAllCards(cardsData) {
 
 async function loadAnalytics() {
     const container = document.getElementById('analyticsCharts');
-    container.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>Loading analytics...</p></div>';
+    container.innerHTML = `
+      <div style="padding: var(--space-lg);">
+        <div class="skeleton skeleton-title"></div>
+        ${getSkeletonHTML('category', 6)}
+      </div>
+    `;
 
     try {
         const response = await apiRequest(API_ENDPOINTS.analyticsTrends);
@@ -695,6 +721,9 @@ async function searchUsers(e) {
         suggestions.classList.remove('show');
         return;
     }
+
+    suggestions.innerHTML = '<div class="suggestion-item"><div class="spinner" style="width: 14px; height: 14px; display: inline-block; margin-right: 8px;"></div> Searching...</div>';
+    suggestions.classList.add('show');
 
     try {
         const response = await apiRequest(`${API_ENDPOINTS.transferSearch}?email=${email}`);
@@ -753,7 +782,7 @@ async function handleSendMoney(e) {
 
 async function loadTransferHistory() {
     const container = document.getElementById('transferHistory');
-    container.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>Loading...</p></div>';
+    container.innerHTML = getSkeletonHTML('list-item', 5);
 
     try {
         const response = await apiRequest(API_ENDPOINTS.transferHistory);
