@@ -7,6 +7,7 @@ import {
     validateSearchQuery,
     stripXSS,
 } from '../middleware/sanitize.js';
+import { invalidateUserCache } from '../middleware/cache.js';
 
 // @desc    Send money to another user
 // @route   POST /api/transfer/send
@@ -129,6 +130,15 @@ export const sendMoney = async (req, res) => {
             await User.findByIdAndUpdate(recipient._id, { $inc: { balance: -safeAmount } });
             throw new Error('Failed to create transaction records. Transfer rolled back.');
         }
+
+        // Invalidate cache for BOTH sender and recipient
+        await invalidateUserCache(sender._id, 'transactions');
+        await invalidateUserCache(sender._id, 'analytics');
+        await invalidateUserCache(sender._id, 'transfers');
+
+        await invalidateUserCache(recipient._id, 'transactions');
+        await invalidateUserCache(recipient._id, 'analytics');
+        await invalidateUserCache(recipient._id, 'transfers');
 
         res.status(200).json({
             success: true,
