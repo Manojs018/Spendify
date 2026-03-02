@@ -4,6 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { initRedis } from './config/redis.js';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import connectDB from './config/db.js';
@@ -103,43 +104,59 @@ app.get('/', (req, res) => {
     });
 });
 
-// Serve frontend static files in production
+// Serve frontend static files
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-if (process.env.NODE_ENV === 'production') {
-    app.use(express.static(path.join(__dirname, '../client')));
+app.use(express.static(path.join(__dirname, '../client')));
 
-    app.get('*', (req, res, next) => {
-        if (req.url.startsWith('/api')) {
-            return next();
-        }
-        res.sendFile(path.resolve(__dirname, '../client', 'index.html'));
-    });
-}
+// Catch-all for SPA (return index.html for non-API routes)
+app.get('*', (req, res, next) => {
+    if (req.url.startsWith('/api')) {
+        return next();
+    }
+    res.sendFile(path.resolve(__dirname, '../client', 'index.html'));
+});
 
 // Error handler (must be last)
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
+let server;
 
-const server = app.listen(PORT, () => {
-    console.log(`
-╔═══════════════════════════════════════════════════════╗
-║                                                       ║
-║              🟦 SPENDIFY API SERVER                   ║
-║        Smart Spending. Clear Insights.                ║
-║                                                       ║
-║  🚀 Server running on port ${PORT}                      ║
-║  🌍 Environment: ${process.env.NODE_ENV}                        ║
-║  📡 API: http://localhost:${PORT}                       ║
-║                                                       ║
-╚═══════════════════════════════════════════════════════╝
-  `);
-});
+// Start server
+const startServer = async () => {
+    try {
+        // Initialize Redis
+        await initRedis();
+
+        server = app.listen(PORT, () => {
+            console.log('\n╔═══════════════════════════════════════════════════════╗');
+            console.log('║                                                       ║');
+            console.log('║              🟦 SPENDIFY API SERVER                   ║');
+            console.log('║        Smart Spending. Clear Insights.                ║');
+            console.log('║                                                       ║');
+            console.log(`║  🚀 Server running on port ${PORT}                      ║`);
+            console.log(`║  🌍 Environment: ${process.env.NODE_ENV}                        ║`);
+            console.log(`║  📡 API: http://localhost:${PORT}                       ║`);
+            console.log('║                                                       ║');
+            console.log('╚═══════════════════════════════════════════════════════╝\n');
+        });
+    } catch (error) {
+        console.error('❌ Failed to start server:', error);
+        process.exit(1);
+    }
+};
+
+startServer();
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err, promise) => {
     console.log(`❌ Error: ${err.message}`);
-    server.close(() => process.exit(1));
+    // Close server & exit process
+    if (server) {
+        server.close(() => process.exit(1));
+    } else {
+        process.exit(1);
+    }
 });
