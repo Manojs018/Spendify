@@ -6,6 +6,7 @@ import {
     validateTransactionQuery,
     stripXSS,
 } from '../middleware/sanitize.js';
+import { invalidateUserCache } from '../middleware/cache.js';
 
 // Allowed sort fields whitelist (prevents sort injection)
 const ALLOWED_SORT_FIELDS = [
@@ -230,6 +231,10 @@ export const createTransaction = async (req, res) => {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
 
+        // Invalidate cache
+        await invalidateUserCache(req.user.id, 'transactions');
+        await invalidateUserCache(req.user.id, 'analytics');
+
         return res.status(201).json({
             success: true,
             message: 'Transaction created successfully',
@@ -331,6 +336,10 @@ export const updateTransaction = async (req, res) => {
                 ...(date !== undefined ? { date: new Date(date) } : {}),
             }, { new: true, runValidators: true });
 
+            // Invalidate cache
+            await invalidateUserCache(req.user.id, 'transactions');
+            await invalidateUserCache(req.user.id, 'analytics');
+
             return res.status(200).json({
                 success: true,
                 message: 'Transaction updated successfully',
@@ -359,6 +368,10 @@ export const updateTransaction = async (req, res) => {
             new: true,
             runValidators: true,
         });
+
+        // Invalidate cache
+        await invalidateUserCache(req.user.id, 'transactions');
+        await invalidateUserCache(req.user.id, 'analytics');
 
         return res.status(200).json({
             success: true,
