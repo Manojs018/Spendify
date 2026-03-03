@@ -1,6 +1,70 @@
 // ===================================
-// UTILITY FUNCTIONS
+// UTILITY FUNCTIONS & SW REGISTRATION
 // ===================================
+
+// Service Worker Registration
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('SW: Registered', reg))
+            .catch(err => console.error('SW: Registration failed', err));
+    });
+}
+
+// Network Status Listeners
+window.addEventListener('online', () => {
+    showToast('You are back online! Syncing data...', 'success');
+    document.body.classList.remove('is-offline');
+    syncOfflineData();
+});
+
+window.addEventListener('offline', () => {
+    showToast('You are offline. Some features may be limited.', 'warning');
+    document.body.classList.add('is-offline');
+});
+
+const OFFLINE_QUEUE_KEY = 'spendify_offline_queue';
+
+function queueOfflineRequest(url, options) {
+    const queue = JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]');
+    // Only queue mutations (POST, PUT, DELETE)
+    if (options.method && options.method.toUpperCase() !== 'GET') {
+        queue.push({ url, options, id: Date.now() });
+        localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+    }
+}
+
+async function syncOfflineData() {
+    const queue = JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]');
+    if (queue.length === 0) return;
+
+    console.log(`SW: Syncing ${queue.length} offline requests...`);
+
+    // Create a copy to iterate
+    const requests = [...queue];
+    // Clear the queue first to avoid double-processing if sync takes time
+    localStorage.setItem(OFFLINE_QUEUE_KEY, '[]');
+
+    for (const item of requests) {
+        try {
+            await apiRequest(item.url, item.options);
+        } catch (error) {
+            console.error('SW: Failed to sync offline request:', error);
+            // Re-queue if it failed due to network still being unstable
+            if (!navigator.onLine) {
+                const currentQueue = JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]');
+                currentQueue.push(item);
+                localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(currentQueue));
+            }
+        }
+    }
+
+    const finalQueue = JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]');
+    if (finalQueue.length === 0 && requests.length > 0) {
+        showToast('All offline data synchronized!', 'success');
+    }
+}
+
 
 // Show toast notification
 function showToast(message, type = 'info') {
@@ -134,6 +198,13 @@ async function apiRequest(url, options = {}) {
             ...options.headers,
         },
     };
+
+    // Offline Handling
+    if (!navigator.onLine && method !== 'GET') {
+        queueOfflineRequest(url, options);
+        showToast('Saving locally – will sync when connected', 'info');
+        return { success: true, offline: true, message: 'Saved offline' };
+    }
 
     try {
         const response = await fetch(url, finalOptions);
