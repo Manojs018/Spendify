@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline - Spendify</title>
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/global.css">
+    <style>
+        body {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            background: var(--bg-primary);
+        }
+
+        .offline-container {
+            max-width: 400px;
+            padding: var(--space-xl);
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-xl);
+        }
+
+        .offline-icon {
+            font-size: 64px;
+            margin-bottom: var(--space-lg);
+            display: block;
+        }
+
+        h1 {
+            color: var(--accent-primary);
+            margin-bottom: var(--space-md);
+        }
+
+        p {
+            color: var(--text-secondary);
+            margin-bottom: var(--space-xl);
+        }
+
+        .btn-retry {
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="offline-container">
+        <span class="offline-icon">📡</span>
+        <h1>You're Offline</h1>
+        <p>It seems you've lost your internet connection. Don't worry, Spendify will keep track of your changes and sync
+            them once you're back online.</p>
+        <button onclick="window.location.reload()" class="btn btn-primary btn-retry">
+            Try Again
+        </button>
+    </div>
+</body>
+
+</html>
