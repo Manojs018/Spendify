@@ -114,6 +114,7 @@ a:hover {
     justify-content: center;
     gap: var(--space-sm);
     padding: 12px 24px;
+    min-height: 48px;
     font-size: var(--font-size-base);
     font-weight: var(--font-weight-semibold);
     border: none;
@@ -122,6 +123,7 @@ a:hover {
     transition: all var(--transition-base);
     position: relative;
     overflow: hidden;
+    touch-action: manipulation;
 }
 
 .btn:disabled {
@@ -218,7 +220,9 @@ textarea,
 select {
     width: 100%;
     padding: 12px 16px;
-    font-size: var(--font-size-base);
+    min-height: 48px;
+    font-size: 16px;
+    /* 16px minimum prevents iOS zoom */
     font-family: var(--font-family);
     color: var(--text-primary);
     background: var(--bg-card);
