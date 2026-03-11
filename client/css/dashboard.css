@@ -836,3 +836,52 @@
         width: 95%;
     }
 }
+
+@media (max-width: 480px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .stat-card {
+        padding: var(--space-md);
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        font-size: var(--font-size-2xl);
+    }
+
+    .transaction-item {
+        padding: var(--space-sm);
+        gap: var(--space-sm);
+    }
+
+    .transaction-icon {
+        width: 36px;
+        height: 36px;
+        font-size: var(--font-size-base);
+    }
+
+    .transaction-amount {
+        font-size: var(--font-size-base);
+    }
+
+    #pageTitle {
+        font-size: var(--font-size-xl);
+    }
+
+    .header {
+        padding: 0 var(--space-sm);
+        height: 60px;
+        /* slightly smaller header on very small screens */
+    }
+
+    .content {
+        padding: var(--space-sm);
+    }
+
+    .card {
+        padding: var(--space-md);
+    }
+}
