@@ -229,6 +229,20 @@
     }
 }
 
+@media (max-width: 480px) {
+    .auth-forms {
+        padding: var(--space-lg);
+    }
+
+    .auth-form h2 {
+        font-size: var(--font-size-xl);
+    }
+
+    .logo h1 {
+        font-size: var(--font-size-2xl);
+    }
+}
+
 /* ===================================
    PASSWORD STRENGTH INDICATOR
    =================================== */
