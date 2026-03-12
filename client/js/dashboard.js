@@ -263,6 +263,33 @@ function setupEventListeners() {
     document.getElementById('filterCategory')?.addEventListener('change', loadAllTransactions);
     document.getElementById('filterMonth')?.addEventListener('change', loadAllTransactions);
     document.getElementById('searchTransactions')?.addEventListener('input', debounce(loadAllTransactions, 300));
+
+    // Keyboard Navigation for Modals
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            if (transactionModal.classList.contains('show')) closeTransactionModal();
+            if (cardModal.classList.contains('show')) closeCardModal();
+        }
+    });
+
+    // Keyboard Navigation for User Suggestions
+    const userSuggestions = document.getElementById('userSuggestions');
+    userSuggestions.addEventListener('keydown', (e) => {
+        const items = Array.from(userSuggestions.querySelectorAll('.suggestion-item'));
+        if (!items.length) return;
+        
+        const currentIndex = items.indexOf(document.activeElement);
+        
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            const nextIndex = (currentIndex + 1) % items.length;
+            items[nextIndex].focus();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            const prevIndex = (currentIndex - 1 + items.length) % items.length;
+            items[prevIndex].focus();
+        }
+    });
 }
 
 function navigateToPage(page) {
@@ -344,10 +371,14 @@ function openTransactionModal(type = 'expense', transaction = null) {
 
     updateCategoryOptions();
     transactionModal.classList.add('show');
+    transactionModal.setAttribute('aria-hidden', 'false');
+    // Focus first input
+    setTimeout(() => document.getElementById('transactionAmount').focus(), 100);
 }
 
 function closeTransactionModal() {
     transactionModal.classList.remove('show');
+    transactionModal.setAttribute('aria-hidden', 'true');
     document.getElementById('transactionForm').reset();
     editingTransactionId = null;
 }
@@ -422,10 +453,14 @@ async function handleTransactionSubmit(e) {
 
 function openCardModal() {
     cardModal.classList.add('show');
+    cardModal.setAttribute('aria-hidden', 'false');
+    // Focus first input
+    setTimeout(() => document.getElementById('cardNumber').focus(), 100);
 }
 
 function closeCardModal() {
     cardModal.classList.remove('show');
+    cardModal.setAttribute('aria-hidden', 'true');
     document.getElementById('cardForm').reset();
 }
 
@@ -730,10 +765,10 @@ async function searchUsers(e) {
 
         if (response.success && response.data.length > 0) {
             suggestions.innerHTML = response.data.map(user => `
-        <div class="suggestion-item" onclick="selectUser('${user.email}', '${user.name}')">
+        <button type="button" class="suggestion-item" style="width:100%;text-align:left;border:none;background:none;font:inherit;color:inherit;" tabindex="0" onclick="selectUser('${user.email}', '${user.name}')" onkeydown="if(event.key==='Enter' || event.key===' ') {event.preventDefault(); selectUser('${user.email}', '${user.name}');}">
           <strong>${user.name}</strong><br>
           <small>${user.email}</small>
-        </div>
+        </button>
       `).join('');
             suggestions.classList.add('show');
         } else {
