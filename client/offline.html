@@ -50,15 +50,15 @@
 </head>
 
 <body>
-    <div class="offline-container">
-        <span class="offline-icon">📡</span>
+    <main class="offline-container" role="alert" aria-live="assertive">
+        <span class="offline-icon" aria-hidden="true">📡</span>
         <h1>You're Offline</h1>
         <p>It seems you've lost your internet connection. Don't worry, Spendify will keep track of your changes and sync
             them once you're back online.</p>
-        <button onclick="window.location.reload()" class="btn btn-primary btn-retry">
+        <button onclick="window.location.reload()" class="btn btn-primary btn-retry" aria-label="Retry Connection">
             Try Again
         </button>
-    </div>
+    </main>
 </body>
 
 </html>
