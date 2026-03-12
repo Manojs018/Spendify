@@ -21,10 +21,10 @@
 </head>
 
 <body class="auth-page">
-    <!-- Auth Container -->
-    <div class="auth-container">
+    <main id="main-content" class="auth-container" role="main">
+        <!-- Auth Container -->
         <!-- Left Side - Branding -->
-        <div class="auth-branding">
+        <div class="auth-branding" aria-hidden="true">
             <div class="brand-content">
                 <div class="logo">
                     <div class="logo-icon">🟦</div>
@@ -52,8 +52,10 @@
             </div>
         </div>
 
+        </div>
+
         <!-- Right Side - Auth Forms -->
-        <div class="auth-forms">
+        <section class="auth-forms" aria-labelledby="form-heading">
 
             <!-- Already-authenticated banner (hidden by default) -->
             <div class="auth-form" id="alreadyAuthBanner" style="display:none;">
@@ -70,7 +72,7 @@
             </div>
 
             <div class="auth-form" id="loginForm">
-                <h2>Welcome Back</h2>
+                <h2 id="form-heading">Welcome Back</h2>
                 <p class="form-subtitle">Sign in to continue to your dashboard</p>
 
                 <form id="loginFormElement">
@@ -85,22 +87,22 @@
                             required>
                     </div>
 
-                    <button type="submit" class="btn btn-primary btn-block">
+                    <button type="submit" class="btn btn-primary btn-block" aria-label="Sign In">
                         <span>Sign In</span>
-                        <span class="btn-loader" style="display: none;">
+                        <span class="btn-loader" style="display: none;" aria-hidden="true">
                             <span class="spinner"></span>
                         </span>
                     </button>
                 </form>
 
                 <div class="form-footer">
-                    <p>Don't have an account? <a href="#" id="showRegister">Sign up</a></p>
+                    <p>Don't have an account? <a href="#" id="showRegister" aria-label="Go to Sign up form">Sign up</a></p>
                 </div>
             </div>
 
             <!-- Register Form -->
             <div class="auth-form" id="registerForm" style="display: none;">
-                <h2>Create Account</h2>
+                <h2 id="register-heading">Create Account</h2>
                 <p class="form-subtitle">Start managing your finances today</p>
 
                 <form id="registerFormElement">
@@ -119,8 +121,8 @@
                         <input type="password" id="registerPassword" name="password"
                             placeholder="Create a strong password (min 12 chars)" required minlength="12">
                         <!-- Password Strength Indicator -->
-                        <div class="password-strength" id="passwordStrengthBar">
-                            <div class="strength-bar">
+                        <div class="password-strength" id="passwordStrengthBar" aria-live="polite">
+                            <div class="strength-bar" aria-hidden="true">
                                 <div class="strength-fill" id="strengthFill"></div>
                             </div>
                             <span class="strength-label" id="strengthLabel"></span>
@@ -142,23 +144,23 @@
                         <span class="field-error" id="confirmPasswordError"></span>
                     </div>
 
-                    <button type="submit" class="btn btn-primary btn-block" id="registerSubmitBtn" disabled>
+                    <button type="submit" class="btn btn-primary btn-block" id="registerSubmitBtn" disabled aria-label="Create Account">
                         <span>Create Account</span>
-                        <span class="btn-loader" style="display: none;">
+                        <span class="btn-loader" style="display: none;" aria-hidden="true">
                             <span class="spinner"></span>
                         </span>
                     </button>
                 </form>
 
                 <div class="form-footer">
-                    <p>Already have an account? <a href="#" id="showLogin">Sign in</a></p>
+                    <p>Already have an account? <a href="#" id="showLogin" aria-label="Go to Sign in form">Sign in</a></p>
                 </div>
             </div>
-        </div>
-    </div>
+        </section>
+    </main>
 
     <!-- Toast Notification -->
-    <div id="toast" class="toast"></div>
+    <div id="toast" class="toast" aria-live="polite" aria-atomic="true" role="alert"></div>
 
     <!-- Scripts -->
     <script src="js/config.js"></script>
