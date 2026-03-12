@@ -21,56 +21,56 @@
 
 <body class="dashboard-page">
     <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar">
+    <aside class="sidebar" id="sidebar" aria-label="Main Navigation">
         <div class="sidebar-header">
             <div class="logo">
-                <div class="logo-icon">🟦</div>
+                <div class="logo-icon" aria-hidden="true">🟦</div>
                 <h1>Spendify</h1>
             </div>
         </div>
 
-        <nav class="sidebar-nav">
-            <a href="#" class="nav-item active" data-page="dashboard">
-                <span class="nav-icon">📊</span>
+        <nav class="sidebar-nav" aria-label="Sidebar Menu">
+            <a href="#" class="nav-item active" data-page="dashboard" aria-current="page">
+                <span class="nav-icon" aria-hidden="true">📊</span>
                 <span class="nav-text">Dashboard</span>
             </a>
             <a href="#" class="nav-item" data-page="transactions">
-                <span class="nav-icon">💸</span>
+                <span class="nav-icon" aria-hidden="true">💸</span>
                 <span class="nav-text">Transactions</span>
             </a>
             <a href="#" class="nav-item" data-page="cards">
-                <span class="nav-icon">💳</span>
+                <span class="nav-icon" aria-hidden="true">💳</span>
                 <span class="nav-text">Cards</span>
             </a>
             <a href="#" class="nav-item" data-page="analytics">
-                <span class="nav-icon">📈</span>
+                <span class="nav-icon" aria-hidden="true">📈</span>
                 <span class="nav-text">Analytics</span>
             </a>
             <a href="#" class="nav-item" data-page="transfer">
-                <span class="nav-icon">🔄</span>
+                <span class="nav-icon" aria-hidden="true">🔄</span>
                 <span class="nav-text">Send Money</span>
             </a>
         </nav>
 
         <div class="sidebar-footer">
-            <button class="btn btn-secondary btn-block" id="logoutBtn">
-                <span>🚪</span>
+            <button class="btn btn-secondary btn-block" id="logoutBtn" aria-label="Logout">
+                <span aria-hidden="true">🚪</span>
                 <span>Logout</span>
             </button>
         </div>
     </aside>
 
     <!-- Main Content -->
-    <main class="main-content">
+    <main class="main-content" id="main-content">
         <!-- Header -->
         <header class="header">
             <div class="header-left">
-                <button class="menu-toggle" id="menuToggle">☰</button>
-                <h2 id="pageTitle">Dashboard</h2>
+                <button class="menu-toggle" id="menuToggle" aria-label="Toggle Navigation Menu" aria-expanded="false" aria-controls="sidebar">☰</button>
+                <h2 id="pageTitle" tabindex="-1">Dashboard</h2>
             </div>
             <div class="header-right">
-                <div class="user-info">
-                    <div class="user-avatar">👤</div>
+                <div class="user-info" tabindex="0" aria-label="User Profile">
+                    <div class="user-avatar" aria-hidden="true">👤</div>
                     <div class="user-details">
                         <p class="user-name" id="userName">Loading...</p>
                         <p class="user-email" id="userEmail">Loading...</p>
@@ -80,35 +80,35 @@
         </header>
 
         <!-- Dashboard Content -->
-        <div class="content" id="dashboardContent">
+        <div class="content" id="dashboardContent" role="region" aria-labelledby="pageTitle">
             <!-- Stats Cards -->
             <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-icon balance">💰</div>
+                <div class="stat-card" tabindex="0" aria-label="Total Balance">
+                    <div class="stat-icon balance" aria-hidden="true">💰</div>
                     <div class="stat-info">
                         <p class="stat-label">Total Balance</p>
                         <h3 class="stat-value" id="totalBalance">$0.00</h3>
                     </div>
                 </div>
 
-                <div class="stat-card">
-                    <div class="stat-icon income">📈</div>
+                <div class="stat-card" tabindex="0" aria-label="Monthly Income">
+                    <div class="stat-icon income" aria-hidden="true">📈</div>
                     <div class="stat-info">
                         <p class="stat-label">Monthly Income</p>
                         <h3 class="stat-value text-success" id="monthlyIncome">$0.00</h3>
                     </div>
                 </div>
 
-                <div class="stat-card">
-                    <div class="stat-icon expense">📉</div>
+                <div class="stat-card" tabindex="0" aria-label="Monthly Expense">
+                    <div class="stat-icon expense" aria-hidden="true">📉</div>
                     <div class="stat-info">
                         <p class="stat-label">Monthly Expense</p>
                         <h3 class="stat-value text-danger" id="monthlyExpense">$0.00</h3>
                     </div>
                 </div>
 
-                <div class="stat-card">
-                    <div class="stat-icon growth">📊</div>
+                <div class="stat-card" tabindex="0" aria-label="Monthly Balance">
+                    <div class="stat-icon growth" aria-hidden="true">📊</div>
                     <div class="stat-info">
                         <p class="stat-label">This Month</p>
                         <h3 class="stat-value" id="monthlyBalance">$0.00</h3>
@@ -121,82 +121,82 @@
                 <!-- Left Column -->
                 <div class="dashboard-left">
                     <!-- Quick Actions -->
-                    <div class="card">
+                    <section class="card" aria-labelledby="quick-actions-heading">
                         <div class="card-header">
-                            <h3 class="card-title">Quick Actions</h3>
+                            <h3 id="quick-actions-heading" class="card-title">Quick Actions</h3>
                         </div>
                         <div class="quick-actions">
-                            <button class="action-btn" id="addIncomeBtn">
-                                <span class="action-icon">💵</span>
+                            <button class="action-btn" id="addIncomeBtn" aria-label="Add Income">
+                                <span class="action-icon" aria-hidden="true">💵</span>
                                 <span>Add Income</span>
                             </button>
-                            <button class="action-btn" id="addExpenseBtn">
-                                <span class="action-icon">💸</span>
+                            <button class="action-btn" id="addExpenseBtn" aria-label="Add Expense">
+                                <span class="action-icon" aria-hidden="true">💸</span>
                                 <span>Add Expense</span>
                             </button>
-                            <button class="action-btn" id="addCardBtn">
-                                <span class="action-icon">💳</span>
+                            <button class="action-btn" id="addCardBtn" aria-label="Add Card">
+                                <span class="action-icon" aria-hidden="true">💳</span>
                                 <span>Add Card</span>
                             </button>
-                            <button class="action-btn" id="sendMoneyBtn">
-                                <span class="action-icon">🔄</span>
+                            <button class="action-btn" id="sendMoneyBtn" aria-label="Send Money">
+                                <span class="action-icon" aria-hidden="true">🔄</span>
                                 <span>Send Money</span>
                             </button>
                         </div>
-                    </div>
+                    </section>
 
                     <!-- Recent Transactions -->
-                    <div class="card">
+                    <section class="card" aria-labelledby="recent-transactions-heading">
                         <div class="card-header">
-                            <h3 class="card-title">Recent Transactions</h3>
-                            <button class="btn btn-sm btn-secondary" id="viewAllTransactions">View All</button>
+                            <h3 id="recent-transactions-heading" class="card-title">Recent Transactions</h3>
+                            <button class="btn btn-sm btn-secondary" id="viewAllTransactions" aria-label="View All Transactions">View All</button>
                         </div>
-                        <div class="transactions-list" id="recentTransactions">
+                        <div class="transactions-list" id="recentTransactions" role="feed" aria-busy="false" aria-live="polite">
                             <div class="loading-state">
-                                <div class="spinner"></div>
+                                <div class="spinner" aria-hidden="true"></div>
                                 <p>Loading transactions...</p>
                             </div>
                         </div>
-                    </div>
+                    </section>
 
                     <!-- Category Breakdown -->
-                    <div class="card">
+                    <section class="card" aria-labelledby="top-categories-heading">
                         <div class="card-header">
-                            <h3 class="card-title">Top Categories</h3>
+                            <h3 id="top-categories-heading" class="card-title">Top Categories</h3>
                         </div>
-                        <div class="categories-list" id="topCategories">
+                        <div class="categories-list" id="topCategories" aria-busy="false" aria-live="polite">
                             <div class="loading-state">
-                                <div class="spinner"></div>
+                                <div class="spinner" aria-hidden="true"></div>
                                 <p>Loading categories...</p>
                             </div>
                         </div>
-                    </div>
+                    </section>
                 </div>
 
                 <!-- Right Column -->
                 <div class="dashboard-right">
                     <!-- My Cards -->
-                    <div class="card">
+                    <section class="card" aria-labelledby="my-cards-heading">
                         <div class="card-header">
-                            <h3 class="card-title">My Cards</h3>
-                            <button class="btn btn-sm btn-secondary" id="manageCards">Manage</button>
+                            <h3 id="my-cards-heading" class="card-title">My Cards</h3>
+                            <button class="btn btn-sm btn-secondary" id="manageCards" aria-label="Manage Cards">Manage</button>
                         </div>
-                        <div class="cards-container" id="myCards">
+                        <div class="cards-container" id="myCards" aria-busy="false" aria-live="polite">
                             <div class="loading-state">
-                                <div class="spinner"></div>
+                                <div class="spinner" aria-hidden="true"></div>
                                 <p>Loading cards...</p>
                             </div>
                         </div>
-                    </div>
+                    </section>
 
                     <!-- Income vs Expense Chart -->
-                    <div class="card">
+                    <section class="card" aria-labelledby="chart-heading">
                         <div class="card-header">
-                            <h3 class="card-title">Income vs Expense</h3>
+                            <h3 id="chart-heading" class="card-title">Income vs Expense</h3>
                         </div>
                         <div class="chart-container">
-                            <div class="pie-chart" id="incomeExpenseChart">
-                                <div class="chart-legend">
+                            <div class="pie-chart" id="incomeExpenseChart" role="img" aria-label="Income versus Expense Chart">
+                                <div class="chart-legend" aria-hidden="true">
                                     <div class="legend-item">
                                         <span class="legend-color income"></span>
                                         <span class="legend-label">Income</span>
@@ -210,79 +210,82 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </section>
                 </div>
             </div>
         </div>
 
         <!-- Transactions Content (Hidden by default) -->
-        <div class="content hidden" id="transactionsContent">
-            <div class="card">
+        <div class="content hidden" id="transactionsContent" role="region" aria-labelledby="all-transactions-heading">
+            <section class="card">
                 <div class="card-header">
-                    <h3 class="card-title">All Transactions</h3>
-                    <button class="btn btn-primary" id="addTransactionBtn">+ Add Transaction</button>
+                    <h3 id="all-transactions-heading" class="card-title">All Transactions</h3>
+                    <button class="btn btn-primary" id="addTransactionBtn" aria-label="Add New Transaction">+ Add Transaction</button>
                 </div>
 
                 <!-- Filters -->
-                <div class="filters">
-                    <select id="filterType" class="filter-select">
+                <div class="filters" role="search" aria-label="Filter Transactions">
+                    <select id="filterType" class="filter-select" aria-label="Filter by Type">
                         <option value="">All Types</option>
                         <option value="income">Income</option>
                         <option value="expense">Expense</option>
                     </select>
-                    <select id="filterCategory" class="filter-select">
+                    <select id="filterCategory" class="filter-select" aria-label="Filter by Category">
                         <option value="">All Categories</option>
                     </select>
-                    <input type="month" id="filterMonth" class="filter-input">
-                    <input type="search" id="searchTransactions" class="filter-input" placeholder="Search...">
+                    <input type="month" id="filterMonth" class="filter-input" aria-label="Filter by Month">
+                    <input type="search" id="searchTransactions" class="filter-input" placeholder="Search..." aria-label="Search Transactions by description">
                 </div>
 
-                <div class="transactions-table" id="allTransactions">
+                <div class="transactions-table" id="allTransactions" role="table" aria-label="Transactions List">
                     <div class="loading-state">
-                        <div class="spinner"></div>
+                        <div class="spinner" aria-hidden="true"></div>
                         <p>Loading transactions...</p>
                     </div>
                 </div>
-            </div>
+            </section>
         </div>
 
         <!-- Cards Content (Hidden by default) -->
-        <div class="content hidden" id="cardsContent">
+        <div class="content hidden" id="cardsContent" role="region" aria-labelledby="all-cards-heading">
+            <h2 id="all-cards-heading" class="hidden">All Cards</h2>
             <div class="cards-grid" id="allCards">
                 <div class="loading-state">
-                    <div class="spinner"></div>
+                    <div class="spinner" aria-hidden="true"></div>
                     <p>Loading cards...</p>
                 </div>
             </div>
         </div>
 
         <!-- Analytics Content (Hidden by default) -->
-        <div class="content hidden" id="analyticsContent">
-            <div class="card">
+        <div class="content hidden" id="analyticsContent" role="region" aria-labelledby="spending-analytics-heading">
+            <section class="card">
                 <div class="card-header">
-                    <h3 class="card-title">Spending Analytics</h3>
+                    <h3 id="spending-analytics-heading" class="card-title">Spending Analytics</h3>
                 </div>
-                <div id="analyticsCharts">
+                <div id="analyticsCharts" aria-busy="false" aria-live="polite">
                     <div class="loading-state">
-                        <div class="spinner"></div>
+                        <div class="spinner" aria-hidden="true"></div>
                         <p>Loading analytics...</p>
                     </div>
                 </div>
-            </div>
+            </section>
         </div>
 
         <!-- Transfer Content (Hidden by default) -->
-        <div class="content hidden" id="transferContent">
+        <div class="content hidden" id="transferContent" role="region" aria-labelledby="transfer-heading">
+            <h2 id="transfer-heading" class="hidden">Transfer Money</h2>
             <div class="transfer-container">
-                <div class="card">
+                <section class="card" aria-labelledby="send-money-heading">
                     <div class="card-header">
-                        <h3 class="card-title">Send Money</h3>
+                        <h3 id="send-money-heading" class="card-title">Send Money</h3>
                     </div>
                     <form id="sendMoneyForm">
                         <div class="form-group">
                             <label for="recipientEmail">Recipient Email</label>
-                            <input type="email" id="recipientEmail" placeholder="Enter recipient's email" required>
-                            <div id="userSuggestions" class="suggestions"></div>
+                            <input type="email" id="recipientEmail" placeholder="Enter recipient's email" required aria-describedby="email-desc">
+                            <span id="email-desc" class="hidden">Enter the email address of the recipient</span>
+                            <div id="userSuggestions" class="suggestions" role="listbox" aria-label="Email Suggestions"></div>
                         </div>
                         <div class="form-group">
                             <label for="transferAmount">Amount</label>
@@ -292,53 +295,53 @@
                             <label for="transferDescription">Description (Optional)</label>
                             <input type="text" id="transferDescription" placeholder="What's this for?">
                         </div>
-                        <button type="submit" class="btn btn-primary btn-block">
+                        <button type="submit" class="btn btn-primary btn-block" aria-label="Confirm Send Money">
                             <span>Send Money</span>
-                            <span class="btn-loader" style="display: none;">
+                            <span class="btn-loader" style="display: none;" aria-hidden="true">
                                 <span class="spinner"></span>
                             </span>
                         </button>
                     </form>
-                </div>
+                </section>
 
-                <div class="card">
+                <section class="card" aria-labelledby="transfer-history-heading">
                     <div class="card-header">
-                        <h3 class="card-title">Transfer History</h3>
+                        <h3 id="transfer-history-heading" class="card-title">Transfer History</h3>
                     </div>
-                    <div id="transferHistory">
+                    <div id="transferHistory" aria-busy="false" aria-live="polite">
                         <div class="loading-state">
-                            <div class="spinner"></div>
+                            <div class="spinner" aria-hidden="true"></div>
                             <p>Loading history...</p>
                         </div>
                     </div>
-                </div>
+                </section>
             </div>
         </div>
     </main>
 
     <!-- Add/Edit Transaction Modal -->
-    <div class="modal" id="transactionModal">
+    <div class="modal" id="transactionModal" role="dialog" aria-modal="true" aria-labelledby="transactionModalTitle">
         <div class="modal-content">
             <div class="modal-header">
                 <h3 id="transactionModalTitle">Add Transaction</h3>
-                <button class="modal-close" id="closeTransactionModal">&times;</button>
+                <button class="modal-close" id="closeTransactionModal" aria-label="Close Modal">&times;</button>
             </div>
             <form id="transactionForm">
                 <input type="hidden" id="transactionId">
                 <div class="form-group">
                     <label for="transactionType">Type</label>
-                    <select id="transactionType" required>
+                    <select id="transactionType" required aria-required="true">
                         <option value="income">Income</option>
                         <option value="expense">Expense</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label for="transactionAmount">Amount</label>
-                    <input type="number" id="transactionAmount" placeholder="0.00" step="0.01" min="0.01" required>
+                    <input type="number" id="transactionAmount" placeholder="0.00" step="0.01" min="0.01" required aria-required="true">
                 </div>
                 <div class="form-group">
                     <label for="transactionCategory">Category</label>
-                    <select id="transactionCategory" required>
+                    <select id="transactionCategory" required aria-required="true">
                         <option value="">Select category</option>
                     </select>
                 </div>
@@ -348,13 +351,13 @@
                 </div>
                 <div class="form-group">
                     <label for="transactionDate">Date</label>
-                    <input type="date" id="transactionDate" required>
+                    <input type="date" id="transactionDate" required aria-required="true">
                 </div>
                 <div class="modal-actions">
-                    <button type="button" class="btn btn-secondary" id="cancelTransaction">Cancel</button>
-                    <button type="submit" class="btn btn-primary">
+                    <button type="button" class="btn btn-secondary" id="cancelTransaction" aria-label="Cancel Transaction Edit">Cancel</button>
+                    <button type="submit" class="btn btn-primary" aria-label="Save Transaction">
                         <span>Save Transaction</span>
-                        <span class="btn-loader" style="display: none;">
+                        <span class="btn-loader" style="display: none;" aria-hidden="true">
                             <span class="spinner"></span>
                         </span>
                     </button>
@@ -364,29 +367,29 @@
     </div>
 
     <!-- Add Card Modal -->
-    <div class="modal" id="cardModal">
+    <div class="modal" id="cardModal" role="dialog" aria-modal="true" aria-labelledby="cardModalTitle">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Add New Card</h3>
-                <button class="modal-close" id="closeCardModal">&times;</button>
+                <h3 id="cardModalTitle">Add New Card</h3>
+                <button class="modal-close" id="closeCardModal" aria-label="Close Modal">&times;</button>
             </div>
             <form id="cardForm">
                 <div class="form-group">
                     <label for="cardNumber">Card Number</label>
-                    <input type="text" id="cardNumber" placeholder="1234 5678 9012 3456" maxlength="19" required>
+                    <input type="text" id="cardNumber" placeholder="1234 5678 9012 3456" maxlength="19" required aria-required="true">
                 </div>
                 <div class="form-group">
                     <label for="cardHolderName">Card Holder Name</label>
-                    <input type="text" id="cardHolderName" placeholder="JOHN DOE" required>
+                    <input type="text" id="cardHolderName" placeholder="JOHN DOE" required aria-required="true">
                 </div>
                 <div class="form-row">
                     <div class="form-group">
                         <label for="cardExpiry">Expiry (MM/YY)</label>
-                        <input type="text" id="cardExpiry" placeholder="12/26" maxlength="5" required>
+                        <input type="text" id="cardExpiry" placeholder="12/26" maxlength="5" required aria-required="true">
                     </div>
                     <div class="form-group">
                         <label for="cardCVV">CVV</label>
-                        <input type="text" id="cardCVV" placeholder="123" maxlength="4" required>
+                        <input type="text" id="cardCVV" placeholder="123" maxlength="4" required aria-required="true">
                     </div>
                 </div>
                 <div class="form-group">
@@ -394,10 +397,10 @@
                     <input type="number" id="cardBalance" placeholder="0.00" step="0.01" min="0" value="0">
                 </div>
                 <div class="modal-actions">
-                    <button type="button" class="btn btn-secondary" id="cancelCard">Cancel</button>
-                    <button type="submit" class="btn btn-primary">
+                    <button type="button" class="btn btn-secondary" id="cancelCard" aria-label="Cancel Add Card">Cancel</button>
+                    <button type="submit" class="btn btn-primary" aria-label="Save Card">
                         <span>Add Card</span>
-                        <span class="btn-loader" style="display: none;">
+                        <span class="btn-loader" style="display: none;" aria-hidden="true">
                             <span class="spinner"></span>
                         </span>
                     </button>
@@ -407,7 +410,7 @@
     </div>
 
     <!-- Toast Notification -->
-    <div id="toast" class="toast"></div>
+    <div id="toast" class="toast" aria-live="polite" aria-atomic="true" role="alert"></div>
 
     <!-- Scripts -->
     <script src="js/config.js"></script>
