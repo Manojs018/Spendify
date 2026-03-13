@@ -1,10 +1,12 @@
+import logger from '../utils/logger.js';
+
 // Error handler middleware
 const errorHandler = (err, req, res, next) => {
     let error = { ...err };
     error.message = err.message;
 
-    // Log to console for dev
-    console.error(err);
+    // Log to winston
+    logger.error(`Error processing request: ${err.message}`, { error: err, stack: err.stack, path: req.path });
 
     // Mongoose bad ObjectId
     if (err.name === 'CastError') {
