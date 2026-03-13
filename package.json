@@ -5,8 +5,8 @@
   "main": "server/server.js",
   "type": "module",
   "scripts": {
-    "start": "node server/server.js",
-    "dev": "node --watch server/server.js",
+    "start": "node --import ./server/instrument.js server/server.js",
+    "dev": "node --watch --import ./server/instrument.js server/server.js",
     "client": "cd client && npx serve -s .",
     "dev:full": "concurrently \"npm run dev\" \"npm run client\"",
     "verify:indexes": "node server/scripts/verifyIndexes.js",
@@ -21,6 +21,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@sentry/node": "^10.43.0",
+    "@sentry/profiling-node": "^10.43.0",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
@@ -32,7 +34,9 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.1.1",
     "morgan": "^1.10.0",
-    "redis": "^5.11.0"
+    "redis": "^5.11.0",
+    "winston": "^3.19.0",
+    "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
