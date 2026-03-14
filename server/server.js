@@ -7,6 +7,8 @@ import { fileURLToPath } from 'url';
 import { initRedis } from './config/redis.js';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
+import * as Sentry from '@sentry/node';
+import logger from './utils/logger.js';
 import connectDB from './config/db.js';
 import errorHandler from './middleware/errorHandler.js';
 import { sanitizeBody } from './middleware/sanitize.js';
@@ -51,10 +53,10 @@ app.use(sanitizeBody);
 // CSRF Protection
 app.use(csrfProtection);
 
-// Logging middleware
-if (process.env.NODE_ENV === 'development') {
-    app.use(morgan('dev'));
-}
+// Logging middleware map morgan to winston
+app.use(morgan(process.env.NODE_ENV === 'development' ? 'dev' : 'combined', {
+    stream: { write: message => logger.info(message.trim()) }
+}));
 
 // Rate limiting
 const TEST_BYPASS_SECRET = process.env.TEST_BYPASS_SECRET || 'spendify-dev-test-bypass';
@@ -118,6 +120,9 @@ app.get('*', (req, res, next) => {
     res.sendFile(path.resolve(__dirname, '../client', 'index.html'));
 });
 
+// Catch errors before our custom error handler
+Sentry.setupExpressErrorHandler(app);
+
 // Error handler (must be last)
 app.use(errorHandler);
 
@@ -131,19 +136,19 @@ const startServer = async () => {
         await initRedis();
 
         server = app.listen(PORT, () => {
-            console.log('\n╔═══════════════════════════════════════════════════════╗');
-            console.log('║                                                       ║');
-            console.log('║              🟦 SPENDIFY API SERVER                   ║');
-            console.log('║        Smart Spending. Clear Insights.                ║');
-            console.log('║                                                       ║');
-            console.log(`║  🚀 Server running on port ${PORT}                      ║`);
-            console.log(`║  🌍 Environment: ${process.env.NODE_ENV}                        ║`);
-            console.log(`║  📡 API: http://localhost:${PORT}                       ║`);
-            console.log('║                                                       ║');
-            console.log('╚═══════════════════════════════════════════════════════╝\n');
+            logger.info('\n╔═══════════════════════════════════════════════════════╗');
+            logger.info('║                                                       ║');
+            logger.info('║              🟦 SPENDIFY API SERVER                   ║');
+            logger.info('║        Smart Spending. Clear Insights.                ║');
+            logger.info('║                                                       ║');
+            logger.info(`║  🚀 Server running on port ${PORT}                      ║`);
+            logger.info(`║  🌍 Environment: ${process.env.NODE_ENV}                        ║`);
+            logger.info(`║  📡 API: http://localhost:${PORT}                       ║`);
+            logger.info('║                                                       ║');
+            logger.info('╚═══════════════════════════════════════════════════════╝\n');
         });
     } catch (error) {
-        console.error('❌ Failed to start server:', error);
+        logger.error('❌ Failed to start server:', error);
         process.exit(1);
     }
 };
@@ -152,7 +157,7 @@ startServer();
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err, promise) => {
-    console.log(`❌ Error: ${err.message}`);
+    logger.error(`❌ Unhandled Rejection Error: ${err.message}`, { error: err });
     // Close server & exit process
     if (server) {
         server.close(() => process.exit(1));
