@@ -412,6 +412,18 @@
     <!-- Toast Notification -->
     <div id="toast" class="toast" aria-live="polite" aria-atomic="true" role="alert"></div>
 
+    <!-- Sentry SDK -->
+    <script src="https://browser.sentry-cdn.com/8.54.0/bundle.min.js" integrity="sha384-H4uW35G/8zI9E1i3Hw2L5V5/0G1o2L3M4N5O6P7Q8R9S/T0U1V2W3X4Y5Z6A7B8C" crossorigin="anonymous"></script>
+    <script>
+        if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+            Sentry.init({
+                dsn: "https://your-public-key@sentry.io/your-project-id", // Replace with your actual DSN
+                integrations: [Sentry.browserTracingIntegration()],
+                tracesSampleRate: 1.0,
+            });
+        }
+    </script>
+
     <!-- Scripts -->
     <script src="js/config.js"></script>
     <script src="js/utils.js"></script>
