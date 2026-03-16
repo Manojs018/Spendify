@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
+const redisUrl = process.env.REDIS_URL;
 let redisClient = null;
 let isRedisConnected = false;
 
@@ -12,25 +12,46 @@ const memoryCache = new Map();
 
 /**
  * Initialize Redis Client
+ * Redis is opt-in: only connects if REDIS_URL is explicitly set in environment.
+ * Falls back to in-memory cache silently when Redis is unavailable.
  */
 export const initRedis = async () => {
+    // Skip Redis entirely if no REDIS_URL is configured
+    if (!redisUrl) {
+        console.log('ℹ️  Redis: No REDIS_URL configured. Using in-memory cache.');
+        return;
+    }
+
+    let errorLogged = false; // deduplicate error log spam
+
     try {
         redisClient = createClient({
             url: redisUrl,
             socket: {
                 reconnectStrategy: (retries) => {
-                    if (retries > 5) {
-                        console.error('❌ Redis: Max reconnection attempts reached. Falling back to memory cache.');
+                    if (retries >= 3) {
+                        // Stop retrying and clean up
+                        console.warn('⚠️  Redis: Not available. Falling back to in-memory cache.');
                         isRedisConnected = false;
+                        // Quit the client asynchronously to suppress future error events
+                        setImmediate(() => {
+                            if (redisClient) {
+                                redisClient.quit().catch(() => {});
+                            }
+                        });
                         return false; // stop retrying
                     }
-                    return 1000; // retry after 1s
+                    return 1500; // retry after 1.5s
                 }
             }
         });
 
         redisClient.on('error', (err) => {
-            console.error('❌ Redis Error:', err.message);
+            // Only log the first error to avoid spam
+            if (!errorLogged) {
+                console.error('❌ Redis unavailable:', err.message);
+                errorLogged = true;
+            }
             isRedisConnected = false;
         });
 
@@ -41,11 +62,14 @@ export const initRedis = async () => {
         redisClient.on('ready', () => {
             console.log('✅ Redis Connected & Ready');
             isRedisConnected = true;
+            errorLogged = false;
         });
 
         await redisClient.connect();
     } catch (error) {
-        console.error('❌ Redis Connection Failed:', error.message);
+        if (!errorLogged) {
+            console.error('❌ Redis Connection Failed:', error.message);
+        }
         isRedisConnected = false;
     }
 };
