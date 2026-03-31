@@ -12,6 +12,11 @@ const getApiBaseUrl = () => {
         return '/api';
     }
 
+    // Direct file access (file://)
+    if (protocol === 'file:') {
+        return 'http://localhost:5000/api';
+    }
+
     // Production environment (relative path so it works seamlessly on any domain/proxy)
     return '/api';
 };
