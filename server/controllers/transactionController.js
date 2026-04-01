@@ -7,6 +7,8 @@ import {
     stripXSS,
 } from '../middleware/sanitize.js';
 import { invalidateUserCache } from '../middleware/cache.js';
+import json2csv from 'json2csv';
+const { Parser } = json2csv;
 
 // Allowed sort fields whitelist (prevents sort injection)
 const ALLOWED_SORT_FIELDS = [
@@ -103,6 +105,84 @@ export const getTransactions = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Server error while fetching transactions',
+        });
+    }
+};
+
+// @desc    Export transactions to CSV
+// @route   GET /api/transactions/export
+// @access  Private
+export const exportTransactions = async (req, res) => {
+    try {
+        const {
+            type,
+            category,
+            month,
+            year,
+            search,
+            sort = '-date',
+        } = req.query;
+
+        // ── Whitelist sort field to prevent injection ──────────────────────
+        const safeSort = ALLOWED_SORT_FIELDS.includes(sort) ? sort : '-date';
+
+        // ── Build query ────────────────────────────────────────────────────
+        const query = { userId: req.user.id };
+
+        if (type && ['income', 'expense'].includes(type)) {
+            query.type = type;
+        }
+
+        if (category && typeof category === 'string') {
+            query.category = new RegExp(escapeRegex(category.trim()), 'i');
+        }
+
+        if (month && year) {
+            const m = parseInt(month, 10);
+            const y = parseInt(year, 10);
+            const startDate = new Date(y, m - 1, 1);
+            const endDate = new Date(y, m, 0, 23, 59, 59);
+            query.date = { $gte: startDate, $lte: endDate };
+        } else if (year) {
+            const y = parseInt(year, 10);
+            const startDate = new Date(y, 0, 1);
+            const endDate = new Date(y, 11, 31, 23, 59, 59);
+            query.date = { $gte: startDate, $lte: endDate };
+        }
+
+        if (search && typeof search === 'string') {
+            query.description = new RegExp(escapeRegex(search.trim()), 'i');
+        }
+
+        // Fetch all matching data without pagination
+        const transactions = await Transaction.find(query).sort(safeSort).exec();
+
+        // Check if there's any data
+        if (!transactions.length) {
+            return res.status(404).json({ success: false, message: 'No transactions found for export.' });
+        }
+
+        const fields = ['date', 'type', 'category', 'amount', 'description'];
+        const json2csvParser = new Parser({ fields });
+        
+        // Map data to simpler format
+        const csvData = transactions.map(t => ({
+            date: t.date ? t.date.toISOString().split('T')[0] : '',
+            type: t.type,
+            category: t.category,
+            amount: t.amount,
+            description: t.description || ''
+        }));
+        
+        const csv = json2csvParser.parse(csvData);
+
+        res.header('Content-Type', 'text/csv');
+        res.attachment('transactions.csv');
+        return res.send(csv);
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Server error while exporting transactions',
         });
     }
 };
