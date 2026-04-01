@@ -1,6 +1,7 @@
 import express from 'express';
 import {
     getTransactions,
+    exportTransactions,
     getTransaction,
     createTransaction,
     updateTransaction,
@@ -15,6 +16,8 @@ const router = express.Router();
 router.use(protect); // All routes are protected
 
 router.route('/').get(cacheMiddleware('transactions'), getTransactions).post(createTransaction);
+
+router.route('/export').get(exportTransactions);
 
 router
     .route('/:id')
