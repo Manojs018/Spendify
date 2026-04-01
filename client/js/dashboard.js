@@ -258,6 +258,9 @@ function setupEventListeners() {
     // View all transactions
     document.getElementById('viewAllTransactions').addEventListener('click', () => navigateToPage('transactions'));
 
+    // Export Data
+    document.getElementById('exportDataBtn')?.addEventListener('click', exportTransactions);
+
     // Filters
     document.getElementById('filterType')?.addEventListener('change', loadAllTransactions);
     document.getElementById('filterCategory')?.addEventListener('change', loadAllTransactions);
@@ -615,6 +618,71 @@ function displayAllTransactions(transactionsData) {
       `).join('')}
     </div>
   `;
+}
+
+// ===================================
+// EXPORT TRANSACTIONS
+// ===================================
+
+async function exportTransactions() {
+    const btn = document.getElementById('exportDataBtn');
+    if (!btn) return;
+    
+    const originalText = btn.textContent;
+    btn.textContent = 'Exporting...';
+    btn.disabled = true;
+
+    try {
+        const type = document.getElementById('filterType')?.value || '';
+        const category = document.getElementById('filterCategory')?.value || '';
+        const month = document.getElementById('filterMonth')?.value || '';
+        const search = document.getElementById('searchTransactions')?.value || '';
+
+        let url = `${API_ENDPOINTS.transactionsExport}?`;
+        if (type) url += `type=${type}&`;
+        if (category) url += `category=${category}&`;
+        if (month) {
+            const [year, monthNum] = month.split('-');
+            url += `year=${year}&month=${monthNum}&`;
+        }
+        if (search) url += `search=${search}&`;
+
+        const token = localStorage.getItem(STORAGE_KEYS.token);
+        const requestHeaders = {
+            'Authorization': `Bearer ${token}`
+        };
+
+        const response = await fetch(url, { headers: requestHeaders });
+
+        if (!response.ok) {
+            let errMessage = 'Export failed';
+            try {
+                const errData = await response.json();
+                if (errData.message) errMessage = errData.message;
+            } catch (e) {}
+            throw new Error(errMessage);
+        }
+
+        const blob = await response.blob();
+        if (blob.size === 0) throw new Error('No data found to export');
+        
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = downloadUrl;
+        a.download = 'transactions.csv';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(downloadUrl);
+        a.remove();
+        
+        showToast('Export successful!', 'success');
+    } catch (error) {
+        showToast(error.message, 'error');
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
 }
 
 function editTransaction(transaction) {
