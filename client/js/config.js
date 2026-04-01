@@ -32,6 +32,7 @@ const API_ENDPOINTS = {
 
     // Transactions
     transactions: `${API_BASE_URL}/transactions`,
+    transactionsExport: `${API_BASE_URL}/transactions/export`,
     transaction: (id) => `${API_BASE_URL}/transactions/${id}`,
 
     // Cards
