@@ -162,8 +162,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return;
     }
+    // ── Handle OAuth callback errors (e.g. ?error=oauth_failed) ──
+    const urlParams = new URLSearchParams(window.location.search);
+    const oauthError = urlParams.get('error');
+    if (oauthError) {
+        const messages = {
+            oauth_failed: 'Google sign-in failed. Please try again.',
+        };
+        showToast(messages[oauthError] || 'Authentication failed. Please try again.', 'error');
+        // Clean up URL without reloading
+        window.history.replaceState({}, '', window.location.pathname);
+    }
 
-    // Get form elements
+    // ── Determine the API base for OAuth redirect ──
+    const API_BASE = (typeof window.APP_CONFIG !== 'undefined' && window.APP_CONFIG.API_URL)
+        ? window.APP_CONFIG.API_URL.replace('/api', '')
+        : 'http://localhost:5000';
+
+    function startGoogleOAuth(btn) {
+        btn.disabled = true;
+        const originalContent = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner" style="width:18px;height:18px;border-width:2px;"></span><span>Connecting to Google...</span>';
+        // Small delay for UX feedback before redirect
+        setTimeout(() => {
+            window.location.href = `${API_BASE}/api/auth/google`;
+        }, 300);
+    }
+
+    const googleLoginBtn = document.getElementById('googleLoginBtn');
+    const googleRegisterBtn = document.getElementById('googleRegisterBtn');
+    if (googleLoginBtn) googleLoginBtn.addEventListener('click', () => startGoogleOAuth(googleLoginBtn));
+    if (googleRegisterBtn) googleRegisterBtn.addEventListener('click', () => startGoogleOAuth(googleRegisterBtn));
+
     const loginForm = document.getElementById('loginForm');
     const registerForm = document.getElementById('registerForm');
     const loginFormElement = document.getElementById('loginFormElement');
