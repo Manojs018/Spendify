@@ -20,9 +20,18 @@ const userSchema = new mongoose.Schema(
                 'Please provide a valid email',
             ],
         },
+        googleId: {
+            type: String,
+            unique: true,
+            sparse: true,
+        },
+        profilePicture: {
+            type: String,
+            default: '',
+        },
         password: {
             type: String,
-            required: [true, 'Please provide a password'],
+            required: [function () { return !this.googleId; }, 'Please provide a password'],
             minlength: [12, 'Password must be at least 12 characters'],
             validate: {
                 validator: function (value) {
@@ -84,7 +93,7 @@ userSchema.virtual('isLocked').get(function () {
 
 // ── Hash password before saving ───────────────────────────────────
 userSchema.pre('save', async function (next) {
-    if (!this.isModified('password')) {
+    if (!this.isModified('password') || !this.password) {
         return next();           // ← return is essential to avoid double-call
     }
     const salt = await bcrypt.genSalt(12);   // cost factor 12 (OWASP recommended)
@@ -94,6 +103,7 @@ userSchema.pre('save', async function (next) {
 
 // ── Compare plain-text password against stored hash ───────────────
 userSchema.methods.comparePassword = async function (enteredPassword) {
+    if (!this.password) return false;
     return bcrypt.compare(enteredPassword, this.password);
 };
 
