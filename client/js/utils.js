@@ -149,7 +149,39 @@ function logout() {
     window.location.href = 'index.html';
 }
 
+// ─────────────────────────────────────────────────────────
+// OAuth Callback Bootstrap
+// When redirected from /api/auth/google/callback the backend
+// appends token, refreshToken, userName, userId, userEmail
+// as query params.  We harvest them immediately so the rest
+// of the page loads in an authenticated state.
+// ─────────────────────────────────────────────────────────
+(function bootstrapOAuthTokens() {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    const refreshToken = params.get('refreshToken');
+    if (!token) return;
+
+    // Persist auth state
+    localStorage.setItem('spendify_token', token);
+    if (refreshToken) localStorage.setItem('spendify_refresh_token', refreshToken);
+
+    // Build minimal user object from query params
+    const userName  = params.get('userName')  || '';
+    const userId    = params.get('userId')    || '';
+    const userEmail = params.get('userEmail') || '';
+    if (userId) {
+        const userObj = { id: userId, name: userName, email: userEmail };
+        localStorage.setItem('spendify_user', JSON.stringify(userObj));
+    }
+
+    // Strip params from URL without reloading
+    const clean = window.location.pathname;
+    window.history.replaceState({}, document.title, clean);
+})();
+
 let storedCsrfToken = null;
+
 
 // Get CSRF token from cookie or API
 async function getCsrfToken() {
