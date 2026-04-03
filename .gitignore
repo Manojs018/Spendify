@@ -9,7 +9,7 @@ yarn.lock
 .env.production
 
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -21,27 +21,32 @@ pids
 *.seed
 *.pid.lock
 
-# Directory for instrumented libs
-lib-cov
-
-# Coverage directory
-coverage
+# Coverage
+coverage/
 *.lcov
-
-# nyc test coverage
 .nyc_output
 
-# Build files
+# Build artifacts
 dist/
 build/
 
-# IDE
+# IDE / Editor
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-.DS_Store
 
-# OS
+# OS artifacts
+.DS_Store
 Thumbs.db
+
+# AI agent working directories
+.agent/
+.agents/
+_agent/
+_agents/
+
+# Sentry CLI config (keep .example, ignore real one)
+.sentryclirc
+
