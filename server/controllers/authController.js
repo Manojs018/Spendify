@@ -30,13 +30,12 @@ export const register = async (req, res) => {
             });
         }
 
-        // ── Check if email exists (prevent enumeration by returning fake success) ──
+        // ── Check if email exists ──
         const userExists = await User.findOne({ email });
         if (userExists) {
-            // Do NOT reveal that the email exists. Pretend it was created.
-            return res.status(201).json({
-                success: true,
-                message: 'Registration successful! Please log in.',
+            return res.status(400).json({
+                success: false,
+                message: 'Email is already registered. Please log in.',
             });
         }
 
@@ -180,6 +179,47 @@ export const login = async (req, res) => {
         });
     } catch (error) {
         return res.status(500).json({ success: false, message: 'Server error during login' });
+    }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// @desc    OAuth callback hit by Passport successfully
+// @route   GET /api/auth/google/callback
+// @access  Public
+// ─────────────────────────────────────────────────────────────────────────────
+export const googleAuthCallback = async (req, res) => {
+    try {
+        const user = req.user;
+        
+        // Reset failed attempts just in case
+        await user.resetFailedAttempts();
+
+        const token = generateToken(user._id, req);
+
+        // Generate Refresh Token
+        const refreshTokenStr = crypto.randomBytes(40).toString('hex');
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 7);
+
+        await RefreshToken.create({
+            user: user._id,
+            token: refreshTokenStr,
+            expiresAt,
+            fingerprint: generateFingerprint(req)
+        });
+
+        // Redirect to frontend with tokens
+        // Safest approach to hand off token to an SPA without cookies is via URL hash
+        const redirectUrl = new URL('/dashboard.html', process.env.CLIENT_URL || 'http://localhost:3000');
+        redirectUrl.searchParams.set('token', token);
+        redirectUrl.searchParams.set('refreshToken', refreshTokenStr);
+        redirectUrl.searchParams.set('userName', user.name);
+        redirectUrl.searchParams.set('userId', user._id.toString());
+        redirectUrl.searchParams.set('userEmail', user.email);
+
+        return res.redirect(redirectUrl.toString());
+    } catch (error) {
+        return res.redirect((process.env.CLIENT_URL || 'http://localhost:3000') + '?error=oauth_failed');
     }
 };
 
