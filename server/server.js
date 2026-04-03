@@ -20,6 +20,7 @@ import analyticsRoutes from './routes/analyticsRoutes.js';
 import transferRoutes from './routes/transferRoutes.js';
 import csrfRoutes from './routes/csrfRoutes.js';
 import cookieParser from 'cookie-parser';
+import passport from './middleware/passport.js';
 
 // Load env vars
 dotenv.config();
@@ -28,6 +29,9 @@ dotenv.config();
 connectDB();
 
 const app = express();
+
+// Trust proxy to ensure correct IP routing in deployments
+app.set('trust proxy', 1);
 
 // Security middleware
 app.use(helmet());
@@ -52,6 +56,9 @@ app.use(sanitizeBody);
 
 // CSRF Protection
 app.use(csrfProtection);
+
+// Initialize Passport
+app.use(passport.initialize());
 
 // Logging middleware map morgan to winston
 app.use(morgan(process.env.NODE_ENV === 'development' ? 'dev' : 'combined', {
