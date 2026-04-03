@@ -6,8 +6,8 @@ import BlacklistedToken from '../models/BlacklistedToken.js';
 // Generate token fingerprint based on request
 export const generateFingerprint = (req) => {
     const userAgent = req.headers['user-agent'] || 'unknown';
-    const ip = req.ip || req.connection?.remoteAddress || 'unknown';
-    return crypto.createHash('sha256').update(`${userAgent}-${ip}`).digest('hex');
+    // Intentionally omitting IP address due to frequent changes in mobile/proxy environments
+    return crypto.createHash('sha256').update(`${userAgent}`).digest('hex');
 };
 
 export const protect = async (req, res, next) => {
