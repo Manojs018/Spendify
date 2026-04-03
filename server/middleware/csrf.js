@@ -7,6 +7,12 @@ export const csrfProtection = (req, res, next) => {
         return next();
     }
 
+    // 2. Bypass CSRF for Google OAuth routes – these are server-to-server redirects
+    //    not browser XHR/fetch calls, so they have no XSRF-TOKEN cookie.
+    if (req.path.startsWith('/api/auth/google')) {
+        return next();
+    }
+
     const safeMethods = ['GET', 'HEAD', 'OPTIONS'];
 
     if (safeMethods.includes(req.method)) {
@@ -35,3 +41,4 @@ export const csrfProtection = (req, res, next) => {
 
     next();
 };
+
