@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Card from '../models/Card.js';
 import Transaction from '../models/Transaction.js';
 import { invalidateUserCache } from '../middleware/cache.js';
@@ -233,6 +234,7 @@ export const deleteCard = async (req, res) => {
 // @route   POST /api/cards/transfer
 // @access  Private
 export const transferBetweenCards = async (req, res) => {
+    const session = await mongoose.startSession();
     try {
         const { fromCardId, toCardId, amount } = req.body;
 
@@ -243,103 +245,98 @@ export const transferBetweenCards = async (req, res) => {
             });
         }
 
-        if (amount <= 0) {
+        const safeAmount = parseFloat(amount);
+        if (safeAmount <= 0) {
             return res.status(400).json({
                 success: false,
                 message: 'Amount must be greater than 0',
             });
         }
 
-        // Get both cards
-        const fromCard = await Card.findById(fromCardId);
-        const toCard = await Card.findById(toCardId);
+        let result;
+        await session.withTransaction(async () => {
+            // Get both cards
+            const fromCard = await Card.findById(fromCardId).session(session);
+            const toCard = await Card.findById(toCardId).session(session);
 
-        if (!fromCard || !toCard) {
-            return res.status(404).json({
-                success: false,
-                message: 'One or both cards not found',
-            });
-        }
+            if (!fromCard || !toCard) {
+                throw new Error('One or both cards not found');
+            }
 
-        // Verify user owns both cards
-        if (
-            fromCard.userId.toString() !== req.user.id ||
-            toCard.userId.toString() !== req.user.id
-        ) {
-            return res.status(401).json({
-                success: false,
-                message: 'Not authorized to perform this transfer',
-            });
-        }
+            // Verify user owns both cards
+            if (
+                fromCard.userId.toString() !== req.user.id ||
+                toCard.userId.toString() !== req.user.id
+            ) {
+                throw new Error('Not authorized to perform this transfer');
+            }
 
-        // Check sufficient balance
-        if (fromCard.balance < amount) {
-            return res.status(400).json({
-                success: false,
-                message: 'Insufficient balance in source card',
-            });
-        }
+            // Check sufficient balance
+            if (fromCard.balance < safeAmount) {
+                throw new Error('Insufficient balance in source card');
+            }
 
-        // Perform atomic balance updates
-        // Deduct from source card
-        const updatedFromCard = await Card.findByIdAndUpdate(
-            fromCardId,
-            { $inc: { balance: -amount } },
-            { new: true, runValidators: true }
-        );
-
-        if (!updatedFromCard) {
-            return res.status(404).json({
-                success: false,
-                message: 'Source card not found',
-            });
-        }
-
-        // Add to destination card
-        const updatedToCard = await Card.findByIdAndUpdate(
-            toCardId,
-            { $inc: { balance: amount } },
-            { new: true, runValidators: true }
-        );
-
-        if (!updatedToCard) {
-            // Rollback source card balance if destination update fails
-            await Card.findByIdAndUpdate(
+            // Perform atomic balance updates
+            // Deduct from source card
+            const updatedFromCard = await Card.findByIdAndUpdate(
                 fromCardId,
-                { $inc: { balance: amount } },
-                { new: true }
+                { $inc: { balance: -safeAmount } },
+                { new: true, runValidators: true, session }
             );
-            return res.status(404).json({
-                success: false,
-                message: 'Destination card not found. Transfer rolled back.',
-            });
-        }
 
-        // Create transaction records using last 4 digits
-        try {
-            await Transaction.create({
-                userId: req.user.id,
-                amount,
-                type: 'expense',
-                category: 'Transfer',
-                description: `Transfer to card ending in ${toCard.lastFourDigits} `,
-                date: Date.now(),
-            });
+            if (!updatedFromCard) {
+                throw new Error('Source card update failed');
+            }
 
-            await Transaction.create({
-                userId: req.user.id,
-                amount,
-                type: 'income',
-                category: 'Transfer',
-                description: `Transfer from card ending in ${fromCard.lastFourDigits} `,
-                date: Date.now(),
-            });
-        } catch (error) {
-            // Rollback card balances if transaction creation fails
-            await Card.findByIdAndUpdate(fromCardId, { $inc: { balance: amount } });
-            await Card.findByIdAndUpdate(toCardId, { $inc: { balance: -amount } });
-            throw new Error('Failed to create transaction records. Transfer rolled back.');
-        }
+            // Add to destination card
+            const updatedToCard = await Card.findByIdAndUpdate(
+                toCardId,
+                { $inc: { balance: safeAmount } },
+                { new: true, runValidators: true, session }
+            );
+
+            if (!updatedToCard) {
+                throw new Error('Destination card update failed');
+            }
+
+            // Create transaction records
+            await Transaction.create(
+                [
+                    {
+                        userId: req.user.id,
+                        amount: safeAmount,
+                        type: 'expense',
+                        category: 'Transfer',
+                        description: `Transfer to card ending in ${toCard.lastFourDigits} `,
+                        date: Date.now(),
+                    },
+                ],
+                { session }
+            );
+
+            await Transaction.create(
+                [
+                    {
+                        userId: req.user.id,
+                        amount: safeAmount,
+                        type: 'income',
+                        category: 'Transfer',
+                        description: `Transfer from card ending in ${fromCard.lastFourDigits} `,
+                        date: Date.now(),
+                    },
+                ],
+                { session }
+            );
+
+            result = { updatedFromCard, updatedToCard };
+        });
+
+        const { updatedFromCard, updatedToCard } = result;
+
+        // Invalidate cache
+        await invalidateUserCache(req.user.id, 'cards');
+        await invalidateUserCache(req.user.id, 'transactions');
+        await invalidateUserCache(req.user.id, 'analytics');
 
         res.status(200).json({
             success: true,
@@ -355,18 +352,21 @@ export const transferBetweenCards = async (req, res) => {
                     maskedNumber: updatedToCard.maskedNumber,
                     balance: updatedToCard.balance,
                 },
-                amount,
+                amount: safeAmount,
             },
         });
-
-        // Invalidate cache
-        await invalidateUserCache(req.user.id, 'cards');
-        await invalidateUserCache(req.user.id, 'transactions');
-        await invalidateUserCache(req.user.id, 'analytics');
     } catch (error) {
-        res.status(500).json({
+        const cardKnownErrors = [
+            'One or both cards not found',
+            'Not authorized to perform this transfer',
+            'Insufficient balance in source card',
+        ];
+
+        res.status(cardKnownErrors.includes(error.message) ? 400 : 500).json({
             success: false,
-            message: error.message,
+            message: error.message || 'Server error while processing card transfer',
         });
+    } finally {
+        await session.endSession();
     }
 };
