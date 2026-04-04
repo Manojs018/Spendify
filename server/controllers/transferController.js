@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import User from '../models/User.js';
 import Transaction from '../models/Transaction.js';
 import {
@@ -13,6 +14,7 @@ import { invalidateUserCache } from '../middleware/cache.js';
 // @route   POST /api/transfer/send
 // @access  Private
 export const sendMoney = async (req, res) => {
+    const session = await mongoose.startSession();
     try {
         const { recipientEmail, amount, description } = req.body;
 
@@ -38,98 +40,93 @@ export const sendMoney = async (req, res) => {
             });
         }
 
-        // Get sender
-        const sender = await User.findById(req.user.id);
+        let result;
+        await session.withTransaction(async () => {
+            // Get sender
+            const sender = await User.findById(req.user.id).session(session);
+            if (!sender) {
+                throw new Error('Sender not found');
+            }
 
-        // Check if sender has sufficient balance
-        if (sender.balance < safeAmount) {
-            return res.status(400).json({
-                success: false,
-                message: 'Insufficient balance',
-            });
-        }
+            // Check if sender has sufficient balance
+            if (sender.balance < safeAmount) {
+                throw new Error('Insufficient balance');
+            }
 
-        // Find recipient – use exact string match (no regex) to prevent injection
-        const recipient = await User.findOne({ email: safeEmail });
+            // Find recipient – use exact string match (no regex) to prevent injection
+            const recipient = await User.findOne({ email: safeEmail }).session(session);
 
-        if (!recipient) {
-            return res.status(404).json({
-                success: false,
-                message: 'Recipient not found',
-            });
-        }
+            if (!recipient) {
+                throw new Error('Recipient not found');
+            }
 
-        // Check if sending to self
-        if (sender._id.toString() === recipient._id.toString()) {
-            return res.status(400).json({
-                success: false,
-                message: 'Cannot send money to yourself',
-            });
-        }
+            // Check if sending to self
+            if (sender._id.toString() === recipient._id.toString()) {
+                throw new Error('Cannot send money to yourself');
+            }
 
-        // Perform atomic balance updates
-        const updatedSender = await User.findByIdAndUpdate(
-            sender._id,
-            { $inc: { balance: -safeAmount } },
-            { new: true, runValidators: true }
-        );
-
-        if (!updatedSender) {
-            return res.status(404).json({
-                success: false,
-                message: 'Sender not found',
-            });
-        }
-
-        const updatedRecipient = await User.findByIdAndUpdate(
-            recipient._id,
-            { $inc: { balance: safeAmount } },
-            { new: true, runValidators: true }
-        );
-
-        if (!updatedRecipient) {
-            // Rollback sender's balance if recipient update fails
-            await User.findByIdAndUpdate(
+            // Perform atomic balance updates
+            const updatedSender = await User.findByIdAndUpdate(
                 sender._id,
-                { $inc: { balance: safeAmount } },
-                { new: true }
+                { $inc: { balance: -safeAmount } },
+                { new: true, runValidators: true, session }
             );
-            return res.status(404).json({
-                success: false,
-                message: 'Recipient not found. Transaction rolled back.',
-            });
-        }
 
-        // Create transaction records (use safe description, not raw user input)
-        let senderTransaction, recipientTransaction;
-        try {
+            if (!updatedSender) {
+                throw new Error('Sender update failed');
+            }
+
+            const updatedRecipient = await User.findByIdAndUpdate(
+                recipient._id,
+                { $inc: { balance: safeAmount } },
+                { new: true, runValidators: true, session }
+            );
+
+            if (!updatedRecipient) {
+                throw new Error('Recipient update failed');
+            }
+
+            // Create transaction records (use safe description, not raw user input)
             // Use sanitized custom description or a safe system-generated one
             const senderDesc = safeDescription || `Sent to ${stripXSS(recipient.name)} (${safeEmail})`;
             const recipientDesc = safeDescription || `Received from ${stripXSS(sender.name)} (${stripXSS(sender.email)})`;
 
-            senderTransaction = await Transaction.create({
-                userId: sender._id,
-                amount: safeAmount,
-                type: 'expense',
-                category: 'Transfer',
-                description: senderDesc,
-                date: Date.now(),
-            });
+            const [senderTransaction] = await Transaction.create(
+                [
+                    {
+                        userId: sender._id,
+                        amount: safeAmount,
+                        type: 'expense',
+                        category: 'Transfer',
+                        description: senderDesc,
+                        date: Date.now(),
+                    },
+                ],
+                { session }
+            );
 
-            recipientTransaction = await Transaction.create({
-                userId: recipient._id,
-                amount: safeAmount,
-                type: 'income',
-                category: 'Transfer',
-                description: recipientDesc,
-                date: Date.now(),
-            });
-        } catch (error) {
-            // Rollback balance updates if transaction creation fails
-            await User.findByIdAndUpdate(sender._id, { $inc: { balance: safeAmount } });
-            await User.findByIdAndUpdate(recipient._id, { $inc: { balance: -safeAmount } });
-            throw new Error('Failed to create transaction records. Transfer rolled back.');
-        }
+            await Transaction.create(
+                [
+                    {
+                        userId: recipient._id,
+                        amount: safeAmount,
+                        type: 'income',
+                        category: 'Transfer',
+                        description: recipientDesc,
+                        date: Date.now(),
+                    },
+                ],
+                { session }
+            );
+
+            result = {
+                updatedSender,
+                updatedRecipient,
+                senderTransaction,
+            };
+        });
+
+        const { updatedSender, updatedRecipient, senderTransaction } = result;
 
         // Invalidate cache for BOTH sender and recipient
         await invalidateUserCache(sender._id, 'transactions');
@@ -159,10 +156,21 @@ export const sendMoney = async (req, res) => {
             },
         });
     } catch (error) {
-        res.status(500).json({
+        // withTransaction handle rollback if error is thrown inside.
+        // We just need to handle the response.
+        const transferKnownErrors = [
+            'Insufficient balance',
+            'Recipient not found',
+            'Cannot send money to yourself',
+            'Sender not found',
+        ];
+
+        res.status(transferKnownErrors.includes(error.message) ? 400 : 500).json({
             success: false,
             message: error.message || 'Server error while processing transfer',
         });
+    } finally {
+        await session.endSession();
     }
 };
 
