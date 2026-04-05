@@ -1,5 +1,7 @@
 import Transaction from '../models/Transaction.js';
+import RecurringTransaction from '../models/RecurringTransaction.js';
 import User from '../models/User.js';
+import { getNextDate } from '../utils/dateUtils.js';
 import {
     escapeRegex,
     validateTransactionBody,
@@ -226,7 +228,7 @@ export const getTransaction = async (req, res) => {
 // @access  Private
 export const createTransaction = async (req, res) => {
     try {
-        const { amount, type, category, description, date } = req.body;
+        const { amount, type, category, description, date, isRecurring, recurringFrequency } = req.body;
 
         // ── Validate input ─────────────────────────────────────────────────
         const validationErrors = validateTransactionBody({ amount, type, category, description, date });
@@ -282,6 +284,20 @@ export const createTransaction = async (req, res) => {
                 return res.status(500).json({ success: false, message: 'Failed to record transaction' });
             }
 
+            // ── Create Recurring Transaction schedule if requested ─────────────
+            if (isRecurring && recurringFrequency) {
+                await RecurringTransaction.create({
+                    userId: req.user.id,
+                    amount: safeAmount,
+                    type,
+                    category: safeCategory,
+                    description: safeDescription,
+                    frequency: recurringFrequency,
+                    nextProcessingDate: getNextDate(transaction.date, recurringFrequency),
+                    lastProcessedDate: transaction.date,
+                });
+            }
+
             return res.status(201).json({
                 success: true,
                 message: 'Transaction created successfully',
@@ -299,6 +315,20 @@ export const createTransaction = async (req, res) => {
             description: safeDescription,
             date: date ? new Date(date) : Date.now(),
         });
+
+        // ── Create Recurring Transaction schedule if requested ─────────────
+        if (isRecurring && recurringFrequency) {
+            await RecurringTransaction.create({
+                userId: req.user.id,
+                amount: safeAmount,
+                type,
+                category: safeCategory,
+                description: safeDescription,
+                frequency: recurringFrequency,
+                nextProcessingDate: getNextDate(transaction.date, recurringFrequency),
+                lastProcessedDate: transaction.date,
+            });
+        }
 
         const updatedUser = await User.findByIdAndUpdate(
             req.user.id,
