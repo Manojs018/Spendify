@@ -21,6 +21,8 @@ import transferRoutes from './routes/transferRoutes.js';
 import csrfRoutes from './routes/csrfRoutes.js';
 import cookieParser from 'cookie-parser';
 import passport from './middleware/passport.js';
+import { startCronJobs } from './utils/cronJob.js';
+import recurringTransactionRoutes from './routes/recurringTransactionRoutes.js';
 
 // Load env vars
 dotenv.config();
@@ -92,6 +94,7 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/cards', cardRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/transfer', transferRoutes);
+app.use('/api/recurring-transactions', recurringTransactionRoutes);
 app.use('/api/csrf-token', csrfRoutes);
 
 // Welcome route
@@ -141,6 +144,9 @@ const startServer = async () => {
     try {
         // Initialize Redis
         await initRedis();
+
+        // Start Cron Jobs
+        startCronJobs();
 
         server = app.listen(PORT, () => {
             logger.info('\n╔═══════════════════════════════════════════════════════╗');
