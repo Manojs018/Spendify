@@ -50,6 +50,10 @@ const API_ENDPOINTS = {
     transferSend: `${API_BASE_URL}/transfer/send`,
     transferHistory: `${API_BASE_URL}/transfer/history`,
     transferSearch: `${API_BASE_URL}/transfer/search`,
+
+    // Recurring Transactions
+    recurringTransactions: `${API_BASE_URL}/recurring-transactions`,
+    recurringTransaction: (id) => `${API_BASE_URL}/recurring-transactions/${id}`,
 };
 
 // Local Storage Keys
