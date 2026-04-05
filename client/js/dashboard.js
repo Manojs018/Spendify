@@ -26,6 +26,7 @@ const transactionsContent = document.getElementById('transactionsContent');
 const cardsContent = document.getElementById('cardsContent');
 const analyticsContent = document.getElementById('analyticsContent');
 const transferContent = document.getElementById('transferContent');
+const recurringContent = document.getElementById('recurringContent');
 
 // Modals
 const transactionModal = document.getElementById('transactionModal');
@@ -258,6 +259,11 @@ function setupEventListeners() {
     // View all transactions
     document.getElementById('viewAllTransactions').addEventListener('click', () => navigateToPage('transactions'));
 
+    // Recurring checkbox toggle
+    document.getElementById('isRecurring').addEventListener('change', (e) => {
+        document.getElementById('frequencyGroup').style.display = e.target.checked ? 'block' : 'none';
+    });
+
     // Export Data
     document.getElementById('exportDataBtn')?.addEventListener('click', exportTransactions);
 
@@ -313,6 +319,7 @@ function navigateToPage(page) {
     cardsContent.classList.add('hidden');
     analyticsContent.classList.add('hidden');
     transferContent.classList.add('hidden');
+    recurringContent.classList.add('hidden');
 
     // Show selected content
     switch (page) {
@@ -340,6 +347,11 @@ function navigateToPage(page) {
             pageTitle.textContent = 'Send Money';
             transferContent.classList.remove('hidden');
             loadTransferHistory();
+            break;
+        case 'recurring':
+            pageTitle.textContent = 'Recurring Schedules';
+            recurringContent.classList.remove('hidden');
+            loadRecurringTransactions();
             break;
     }
 
@@ -371,6 +383,14 @@ function openTransactionModal(type = 'expense', transaction = null) {
         document.getElementById('transactionType').value = type;
         document.getElementById('transactionDate').value = formatDateForInput(new Date());
     }
+
+    // Reset recurring fields
+    document.getElementById('isRecurring').checked = false;
+    document.getElementById('frequencyGroup').style.display = 'none';
+    document.getElementById('recurringFrequency').value = 'monthly';
+
+    // Disable recurring checkbox if editing (simpler UX for now)
+    document.getElementById('isRecurring').disabled = !!transaction;
 
     updateCategoryOptions();
     transactionModal.classList.add('show');
@@ -418,6 +438,8 @@ async function handleTransactionSubmit(e) {
         category: document.getElementById('transactionCategory').value,
         description: document.getElementById('transactionDescription').value,
         date: document.getElementById('transactionDate').value,
+        isRecurring: document.getElementById('isRecurring').checked,
+        recurringFrequency: document.getElementById('recurringFrequency').value,
     };
 
     try {
@@ -441,6 +463,10 @@ async function handleTransactionSubmit(e) {
             loadDashboardData();
             if (currentPage === 'transactions') {
                 loadAllTransactions();
+            }
+            if (formData.isRecurring) {
+                // If on recurring page, reload it
+                if (currentPage === 'recurring') loadRecurringTransactions();
             }
         }
     } catch (error) {
@@ -934,8 +960,87 @@ function displayTransferHistory(transfersData) {
   `;
 }
 
+// ===================================
+// RECURRING TRANSACTIONS
+// ===================================
+
+async function loadRecurringTransactions() {
+    const container = document.getElementById('recurringTransactionsList');
+    container.innerHTML = getSkeletonHTML('list-item', 5);
+
+    try {
+        const response = await apiRequest(API_ENDPOINTS.recurringTransactions);
+        if (response.success) {
+            displayRecurringTransactions(response.data);
+        }
+    } catch (error) {
+        container.innerHTML = '<div class="empty-state"><p>Failed to load schedules</p></div>';
+    }
+}
+
+function displayRecurringTransactions(data) {
+    const container = document.getElementById('recurringTransactionsList');
+
+    if (!data || data.length === 0) {
+        container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">📅</div>
+        <p>No recurring schedules yet</p>
+      </div>
+    `;
+        return;
+    }
+
+    container.innerHTML = `
+    <div class="transactions-list">
+      ${data.map(item => `
+        <div class="transaction-item">
+          <div class="transaction-icon ${item.type}">
+            🔄
+          </div>
+          <div class="transaction-details">
+            <p class="transaction-category">${item.category} (${item.frequency})</p>
+            <p class="transaction-description">${item.description || 'No description'}</p>
+            <p class="transaction-date" style="font-size: 11px;">Next: ${formatDate(item.nextProcessingDate)}</p>
+          </div>
+          <div style="text-align: right; display: flex; align-items: center; gap: 15px;">
+            <p class="transaction-amount ${item.type === 'income' ? 'text-success' : 'text-danger'}">
+              ${item.type === 'income' ? '+' : '-'}${formatCurrency(item.amount)}
+            </p>
+            <button class="btn btn-sm btn-danger" onclick="deleteRecurring(event, '${item._id}')">
+              <span>Cancel</span>
+              <span class="btn-loader" style="display: none;"><span class="spinner"></span></span>
+            </button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+async function deleteRecurring(e, id) {
+    if (!confirm('Are you sure you want to cancel this recurring schedule?')) return;
+    const btn = e.currentTarget;
+    showLoading(btn);
+
+    try {
+        const response = await apiRequest(API_ENDPOINTS.recurringTransaction(id), {
+            method: 'DELETE',
+        });
+        if (response.success) {
+            showToast('Schedule cancelled!', 'success');
+            loadRecurringTransactions();
+        }
+    } catch (error) {
+        showToast(error.message, 'error');
+    } finally {
+        hideLoading(btn);
+    }
+}
+
 // Make functions globally accessible
 window.editTransaction = editTransaction;
 window.deleteTransaction = deleteTransaction;
+window.deleteRecurring = deleteRecurring;
 window.openCardModal = openCardModal;
 window.selectUser = selectUser;
