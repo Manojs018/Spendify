@@ -50,6 +50,10 @@
                 <span class="nav-icon" aria-hidden="true">🔄</span>
                 <span class="nav-text">Send Money</span>
             </a>
+            <a href="#" class="nav-item" data-page="recurring">
+                <span class="nav-icon" aria-hidden="true">📅</span>
+                <span class="nav-text">Recurring</span>
+            </a>
         </nav>
 
         <div class="sidebar-footer">
@@ -320,6 +324,21 @@
                 </section>
             </div>
         </div>
+
+        <!-- Recurring Content (Hidden by default) -->
+        <div class="content hidden" id="recurringContent" role="region" aria-labelledby="recurring-heading">
+            <section class="card">
+                <div class="card-header">
+                    <h3 id="recurring-heading" class="card-title">Recurring Schedules</h3>
+                </div>
+                <div class="transactions-table" id="recurringTransactionsList" role="table" aria-label="Recurring Schedules List">
+                    <div class="loading-state">
+                        <div class="spinner" aria-hidden="true"></div>
+                        <p>Loading schedules...</p>
+                    </div>
+                </div>
+            </section>
+        </div>
     </main>
 
     <!-- Add/Edit Transaction Modal -->
@@ -355,6 +374,19 @@
                 <div class="form-group">
                     <label for="transactionDate">Date</label>
                     <input type="date" id="transactionDate" required aria-required="true">
+                </div>
+                <div class="form-group-checkbox" style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
+                    <input type="checkbox" id="isRecurring" style="width: auto;">
+                    <label for="isRecurring" style="margin-bottom: 0;">Mark as Recurring</label>
+                </div>
+                <div class="form-group" id="frequencyGroup" style="display: none;">
+                    <label for="recurringFrequency">Frequency</label>
+                    <select id="recurringFrequency">
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly" selected>Monthly</option>
+                        <option value="yearly">Yearly</option>
+                    </select>
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" id="cancelTransaction" aria-label="Cancel Transaction Edit">Cancel</button>
