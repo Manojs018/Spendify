@@ -42,7 +42,7 @@ export const loginRateLimiter = rateLimit({
 // ─────────────────────────────────────────────────────────────
 export const registerRateLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,        // 1 hour
-    max: 3,
+    max: 10,
     skipSuccessfulRequests: false,    // every registration attempt counts
     skip: skipForTests,              // bypass in dev for automated tests
     standardHeaders: true,
