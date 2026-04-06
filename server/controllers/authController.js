@@ -68,6 +68,7 @@ export const register = async (req, res) => {
             message: 'Registration successful! Please log in.',
         });
     } catch (error) {
+        console.error('Registration Error:', error);
         // Mongoose validation errors → expose the first message clearly
         if (error.name === 'ValidationError') {
             const msg = Object.values(error.errors)[0]?.message || 'Validation error';
@@ -178,6 +179,7 @@ export const login = async (req, res) => {
             },
         });
     } catch (error) {
+        console.error('Login Error:', error);
         return res.status(500).json({ success: false, message: 'Server error during login' });
     }
 };
