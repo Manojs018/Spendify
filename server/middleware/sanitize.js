@@ -124,8 +124,8 @@ export function sanitizeBody(req, res, next) {
         // Reject HTML in category BEFORE XSS stripping obscures it
         rejectHtmlInCategory(req.body);
 
-        // XSS-clean all string values in body
-        req.body = deepSanitize(req.body);
+        // XSS-clean string values in body (EXCEPT passwords)
+        req.body = deepSanitize(req.body, ['password', 'confirmPassword', 'currentPassword', 'newPassword']);
 
         next();
     } catch (err) {
@@ -137,20 +137,24 @@ export function sanitizeBody(req, res, next) {
 }
 
 /**
- * Recursively apply stripXSS to every string leaf in obj.
+ * Recursively apply stripXSS to every string leaf in obj, skipping excluded keys.
  */
-function deepSanitize(obj) {
+function deepSanitize(obj, excludeKeys = []) {
     if (obj === null || obj === undefined) return obj;
     if (typeof obj === 'string') return stripXSS(obj);
     if (typeof obj !== 'object') return obj;
 
     if (Array.isArray(obj)) {
-        return obj.map(deepSanitize);
+        return obj.map(v => deepSanitize(v, excludeKeys));
     }
 
     const result = {};
     for (const [k, v] of Object.entries(obj)) {
-        result[k] = deepSanitize(v);
+        if (excludeKeys.includes(k)) {
+            result[k] = v; // Skip sanitization for this field
+        } else {
+            result[k] = deepSanitize(v, excludeKeys);
+        }
     }
     return result;
 }
