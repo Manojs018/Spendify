@@ -92,11 +92,34 @@ function updateStrengthUI(password) {
         label.className = 'strength-label label-strong';
     }
 
-    // Enable/disable submit button
+    // Enable/disable submit button (require score 5 + name/email/passwords match)
+    validateRegistrationForm();
+}
+
+/**
+ * Global registration form validator
+ * Disables "Create Account" button unless all criteria met.
+ */
+function validateRegistrationForm() {
+    const nameInput = document.getElementById('registerName');
+    const emailInput = document.getElementById('registerEmail');
+    const passwordInput = document.getElementById('registerPassword');
+    const confirmPasswordInput = document.getElementById('registerConfirmPassword');
     const submitBtn = document.getElementById('registerSubmitBtn');
-    if (submitBtn) {
-        submitBtn.disabled = score < 5;
+
+    if (!submitBtn) return;
+
+    if (!nameInput || !emailInput || !passwordInput || !confirmPasswordInput) {
+        submitBtn.disabled = true;
+        return;
     }
+
+    const { score } = evaluatePassword(passwordInput.value);
+    const isValidName = nameInput.value.trim().length > 0;
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput.value.trim());
+    const passwordsMatch = passwordInput.value === confirmPasswordInput.value;
+
+    submitBtn.disabled = !(score === 5 && isValidName && isValidEmail && passwordsMatch);
 }
 
 function resetStrengthUI() {
@@ -156,8 +179,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 removeToken();
                 removeUser();
                 if (banner) banner.style.display = 'none';
-                if (loginF) loginF.style.display = 'block';
-                showToast('Signed out. You can now register or login.', 'success');
+                if (loginF) loginF.style.display = 'none'; // Hide login if showing
+                if (registerF) registerF.style.display = 'block'; // Show register for "Register New" flow
+                showToast('Signed out. You can now register your new account.', 'success');
             });
         }
         return;
@@ -221,6 +245,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const confirmPasswordInput = document.getElementById('registerConfirmPassword');
     const confirmPasswordError = document.getElementById('confirmPasswordError');
 
+    const registerNameInput = document.getElementById('registerName');
+    const registerEmailInput = document.getElementById('registerEmail');
+
+    if (registerNameInput) {
+        registerNameInput.addEventListener('input', validateRegistrationForm);
+    }
+    if (registerEmailInput) {
+        registerEmailInput.addEventListener('input', validateRegistrationForm);
+    }
+
     if (registerPasswordInput) {
         registerPasswordInput.addEventListener('input', () => {
             updateStrengthUI(registerPasswordInput.value);
@@ -228,11 +262,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (confirmPasswordInput && confirmPasswordInput.value) {
                 validateConfirmPassword();
             }
+            // validateRegistrationForm is called by updateStrengthUI
         });
     }
 
     if (confirmPasswordInput) {
-        confirmPasswordInput.addEventListener('input', validateConfirmPassword);
+        confirmPasswordInput.addEventListener('input', () => {
+            validateConfirmPassword();
+            validateRegistrationForm();
+        });
     }
 
     function validateConfirmPassword() {
