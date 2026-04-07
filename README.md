@@ -2,7 +2,7 @@
 
 Spendify is a comprehensive, full-stack personal finance and expense tracking application designed to help you take control of your financial life. With a sleek, modern UI and powerful backend analytics, Spendify makes it easy to track daily expenses, manage multiple cards, and gain valuable insights into your spending habits.
 
-![Spendify Banner](https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80)
+![Spendify Dashboard](./assets/dashboard.png)
 
 ---
 
@@ -132,14 +132,13 @@ The app should now be running at `http://localhost:5000` (or `http://localhost:3
 *(Add your screenshots here)*
 | Dashboard | Transactions | Analytics |
 | :---: | :---: | :---: |
-| ![Dashboard Placeholder](https://via.placeholder.com/300x200?text=Dashboard+UI) | ![Transaction Placeholder](https://via.placeholder.com/300x200?text=Transactions+UI) | ![Analytics Placeholder](https://via.placeholder.com/300x200?text=Analytics+UI) |
+| ![Dashboard UI](./assets/dashboard.png) | ![Transaction Placeholder](https://via.placeholder.com/300x200?text=Transactions+UI) | ![Analytics Placeholder](https://via.placeholder.com/300x200?text=Analytics+UI) |
 
 ---
 
 ## 🚀 Future Improvements
 - [ ] **Budget Planning**: Set monthly limits for specific categories and get notifications.
 - [ ] **Mobile App**: Develop a Flutter or React Native version for mobile users.
-- [ ] **Dark Mode Toggle**: Native support for switching between light and dark themes.
 - [ ] **AI Insights**: Use machine learning to predict next month's spending based on history.
 - [ ] **PDF Reports**: Generatere professional monthly financial summaries in PDF format.
 
