@@ -139,7 +139,6 @@ The app should now be running at `http://localhost:5000` (or `http://localhost:3
 ## 🚀 Future Improvements
 - [ ] **Budget Planning**: Set monthly limits for specific categories and get notifications.
 - [ ] **Mobile App**: Develop a Flutter or React Native version for mobile users.
-- [ ] **Dark Mode Toggle**: Native support for switching between light and dark themes.
 - [ ] **AI Insights**: Use machine learning to predict next month's spending based on history.
 - [ ] **PDF Reports**: Generatere professional monthly financial summaries in PDF format.
 
