@@ -9,6 +9,7 @@
     "dev": "node --watch --import ./server/instrument.js server/server.js",
     "client": "cd client && npx serve -s .",
     "dev:full": "concurrently \"npm run dev\" \"npm run client\"",
+    "test:e2e": "playwright test",
     "verify:indexes": "node server/scripts/verifyIndexes.js",
     "sync:indexes": "node server/scripts/syncIndexes.js",
     "sentry:release": "sentry-cli releases new -p spendify $npm_package_version && sentry-cli releases set-commits --auto $npm_package_version && sentry-cli releases finalize $npm_package_version",
@@ -45,6 +46,7 @@
     "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.54.2",
     "concurrently": "^8.2.2"
   }
 }

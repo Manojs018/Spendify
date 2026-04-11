@@ -21,13 +21,27 @@ body {
     color: var(--text-primary);
     background: var(--bg-primary);
     background-image:
-        radial-gradient(circle at 20% 50%, rgba(0, 212, 255, 0.05) 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, rgba(0, 153, 255, 0.05) 0%, transparent 50%);
+        radial-gradient(circle at 12% 18%, rgba(51, 212, 255, 0.18) 0%, transparent 32%),
+        radial-gradient(circle at 88% 78%, rgba(37, 242, 181, 0.14) 0%, transparent 35%),
+        linear-gradient(145deg, #071226 0%, #0b1730 42%, #122544 100%);
     background-attachment: fixed;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
     transition: filter var(--transition-slow);
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: -120px;
+    background:
+        radial-gradient(circle at 15% 20%, rgba(51, 212, 255, 0.14), transparent 38%),
+        radial-gradient(circle at 85% 14%, rgba(27, 139, 255, 0.14), transparent 40%),
+        radial-gradient(circle at 62% 85%, rgba(37, 242, 181, 0.1), transparent 34%);
+    z-index: -2;
+    animation: auroraDrift 18s ease-in-out infinite alternate;
+    pointer-events: none;
 }
 
 body.is-offline {
@@ -59,6 +73,7 @@ h3,
 h4,
 h5,
 h6 {
+    font-family: var(--font-display);
     font-weight: var(--font-weight-bold);
     line-height: 1.2;
     margin-bottom: var(--space-md);
@@ -124,6 +139,7 @@ a:hover {
     position: relative;
     overflow: hidden;
     touch-action: manipulation;
+    isolation: isolate;
 }
 
 .btn:disabled {
@@ -139,7 +155,26 @@ a:hover {
 
 .btn-primary:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 0 40px rgba(0, 212, 255, 0.4);
+    box-shadow: 0 0 36px rgba(51, 212, 255, 0.36);
+}
+
+.btn::after {
+    content: "";
+    position: absolute;
+    inset: -40% auto auto -140%;
+    width: 120%;
+    height: 220%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+    transform: rotate(18deg);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.btn:hover::after {
+    opacity: 1;
+    animation: sweep 900ms ease;
 }
 
 .btn-secondary {
@@ -266,14 +301,30 @@ textarea::placeholder {
     border-radius: var(--radius-xl);
     padding: var(--space-lg);
     box-shadow: var(--shadow-md);
-    transition: all var(--transition-base);
+    transition: transform var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-base);
+    position: relative;
+    overflow: hidden;
+}
+
+.card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--accent-gradient-soft);
+    opacity: 0;
+    transition: opacity var(--transition-base);
+    pointer-events: none;
 }
 
 .card:hover {
     background: var(--bg-card-hover);
     border-color: var(--border-color-hover);
-    transform: translateY(-2px);
+    transform: translateY(-5px);
     box-shadow: var(--shadow-lg);
+}
+
+.card:hover::before {
+    opacity: 0.4;
 }
 
 .card-header {
@@ -592,4 +643,35 @@ textarea::placeholder {
 
 ::-webkit-scrollbar-thumb:hover {
     background: var(--border-color);
+}
+
+@keyframes auroraDrift {
+    0% {
+        transform: translate3d(-1%, -0.5%, 0) scale(1);
+    }
+
+    100% {
+        transform: translate3d(1.5%, 1.2%, 0) scale(1.05);
+    }
+}
+
+@keyframes sweep {
+    0% {
+        transform: translateX(0) rotate(18deg);
+    }
+
+    100% {
+        transform: translateX(250%) rotate(18deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }
