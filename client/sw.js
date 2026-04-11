@@ -1,4 +1,4 @@
-const CACHE_NAME = 'spendify-v1';
+const CACHE_NAME = 'spendify-v2';
 const OFFLINE_URL = 'offline.html';
 
 const ASSETS_TO_CACHE = [

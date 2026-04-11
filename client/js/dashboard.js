@@ -12,6 +12,7 @@ let currentPage = 'dashboard';
 let transactions = [];
 let cards = [];
 let editingTransactionId = null;
+let isPageTransitioning = false;
 
 // DOM Elements
 const sidebar = document.getElementById('sidebar');
@@ -41,6 +42,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadDashboardData();
     setupEventListeners();
     populateCategoryOptions();
+    setupInteractiveMotion();
 });
 
 // ===================================
@@ -81,10 +83,10 @@ async function loadDashboardData() {
             const data = response.data;
 
             // Update stats cards
-            document.getElementById('totalBalance').textContent = formatCurrency(data.balance);
-            document.getElementById('monthlyIncome').textContent = formatCurrency(data.monthly.income);
-            document.getElementById('monthlyExpense').textContent = formatCurrency(data.monthly.expense);
-            document.getElementById('monthlyBalance').textContent = formatCurrency(data.monthly.balance);
+            animateCurrencyCounter(document.getElementById('totalBalance'), data.balance);
+            animateCurrencyCounter(document.getElementById('monthlyIncome'), data.monthly.income);
+            animateCurrencyCounter(document.getElementById('monthlyExpense'), data.monthly.expense);
+            animateCurrencyCounter(document.getElementById('monthlyBalance'), data.monthly.balance);
 
             // Update chart
             document.getElementById('chartIncome').textContent = formatCurrency(data.monthly.income);
@@ -207,6 +209,9 @@ function displayCards(cardsData) {
       </div>
     </div>
   `).join('');
+
+    // Re-apply tilt handlers for dynamic card elements.
+    setupCardTiltEffects();
 }
 
 // ===================================
@@ -258,6 +263,7 @@ function setupEventListeners() {
 
     // View all transactions
     document.getElementById('viewAllTransactions').addEventListener('click', () => navigateToPage('transactions'));
+    document.getElementById('addTransactionBtn')?.addEventListener('click', () => openTransactionModal('expense'));
 
     // Recurring checkbox toggle
     document.getElementById('isRecurring').addEventListener('change', (e) => {
@@ -301,7 +307,17 @@ function setupEventListeners() {
     });
 }
 
-function navigateToPage(page) {
+async function navigateToPage(page) {
+    if (isPageTransitioning || page === currentPage) return;
+    isPageTransitioning = true;
+
+    const currentSection = getSectionByPage(currentPage);
+    const nextSection = getSectionByPage(page);
+
+    if (currentSection && nextSection) {
+        await animateSectionTransition(currentSection, nextSection);
+    }
+
     currentPage = page;
 
     // Update active nav item
@@ -313,50 +329,96 @@ function navigateToPage(page) {
         }
     });
 
-    // Hide all content sections
-    dashboardContent.classList.add('hidden');
-    transactionsContent.classList.add('hidden');
-    cardsContent.classList.add('hidden');
-    analyticsContent.classList.add('hidden');
-    transferContent.classList.add('hidden');
-    recurringContent.classList.add('hidden');
-
-    // Show selected content
     switch (page) {
         case 'dashboard':
             pageTitle.textContent = 'Dashboard';
-            dashboardContent.classList.remove('hidden');
+            showOnlySection(dashboardContent);
             loadDashboardData();
             break;
         case 'transactions':
             pageTitle.textContent = 'Transactions';
-            transactionsContent.classList.remove('hidden');
+            showOnlySection(transactionsContent);
             loadAllTransactions();
             break;
         case 'cards':
             pageTitle.textContent = 'My Cards';
-            cardsContent.classList.remove('hidden');
+            showOnlySection(cardsContent);
             loadAllCards();
             break;
         case 'analytics':
             pageTitle.textContent = 'Analytics';
-            analyticsContent.classList.remove('hidden');
+            showOnlySection(analyticsContent);
             loadAnalytics();
             break;
         case 'transfer':
             pageTitle.textContent = 'Send Money';
-            transferContent.classList.remove('hidden');
+            showOnlySection(transferContent);
             loadTransferHistory();
             break;
         case 'recurring':
             pageTitle.textContent = 'Recurring Schedules';
-            recurringContent.classList.remove('hidden');
+            showOnlySection(recurringContent);
             loadRecurringTransactions();
             break;
     }
 
     // Close mobile menu
     sidebar.classList.remove('show');
+    isPageTransitioning = false;
+}
+
+function getSectionByPage(page) {
+    switch (page) {
+        case 'dashboard':
+            return dashboardContent;
+        case 'transactions':
+            return transactionsContent;
+        case 'cards':
+            return cardsContent;
+        case 'analytics':
+            return analyticsContent;
+        case 'transfer':
+            return transferContent;
+        case 'recurring':
+            return recurringContent;
+        default:
+            return null;
+    }
+}
+
+function showOnlySection(activeSection) {
+    [dashboardContent, transactionsContent, cardsContent, analyticsContent, transferContent, recurringContent]
+        .forEach(section => {
+            if (section === activeSection) {
+                section.classList.remove('hidden');
+            } else {
+                section.classList.add('hidden');
+            }
+        });
+}
+
+function animateSectionTransition(currentSection, nextSection) {
+    return new Promise((resolve) => {
+        if (currentSection === nextSection) {
+            resolve();
+            return;
+        }
+
+        currentSection.classList.remove('section-enter-active');
+        currentSection.classList.add('section-exit-active');
+
+        setTimeout(() => {
+            currentSection.classList.remove('section-exit-active');
+            currentSection.classList.add('hidden');
+            nextSection.classList.remove('hidden');
+            nextSection.classList.add('section-enter-active');
+
+            setTimeout(() => {
+                nextSection.classList.remove('section-enter-active');
+                resolve();
+            }, 460);
+        }, 260);
+    });
 }
 
 // ===================================
@@ -593,7 +655,7 @@ async function loadAllTransactions() {
         const response = await apiRequest(url);
 
         if (response.success) {
-            transactions = response.data;
+            transactions = Array.isArray(response.data) ? response.data : [];
             displayAllTransactions(transactions);
         }
     } catch (error) {
@@ -789,6 +851,61 @@ function displayAllCards(cardsData) {
       </div>
     </div>
   `).join('');
+
+    // Re-apply tilt handlers for dynamic card elements.
+    setupCardTiltEffects();
+}
+
+function animateCurrencyCounter(element, targetValue, duration = 700) {
+    if (!element || typeof targetValue !== 'number' || Number.isNaN(targetValue)) return;
+
+    const previousValue = parseFloat(element.dataset.value || '0');
+    const startValue = Number.isNaN(previousValue) ? 0 : previousValue;
+    const startTime = performance.now();
+
+    const render = (timestamp) => {
+        const progress = Math.min((timestamp - startTime) / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const next = startValue + (targetValue - startValue) * eased;
+        element.textContent = formatCurrency(next);
+
+        if (progress < 1) {
+            requestAnimationFrame(render);
+            return;
+        }
+
+        element.dataset.value = String(targetValue);
+    };
+
+    requestAnimationFrame(render);
+}
+
+function setupCardTiltEffects() {
+    const tiltCards = document.querySelectorAll('.stat-card, .credit-card, .action-btn');
+    tiltCards.forEach(card => {
+        if (card.dataset.tiltBound === '1') return;
+
+        card.dataset.tiltBound = '1';
+        card.addEventListener('mousemove', (e) => {
+            const rect = card.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const rotateY = ((x / rect.width) - 0.5) * 7;
+            const rotateX = (0.5 - (y / rect.height)) * 7;
+
+            card.classList.add('tilt-active');
+            card.style.transform = `perspective(700px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) translateY(-4px)`;
+        });
+
+        card.addEventListener('mouseleave', () => {
+            card.classList.remove('tilt-active');
+            card.style.transform = '';
+        });
+    });
+}
+
+function setupInteractiveMotion() {
+    setupCardTiltEffects();
 }
 
 // ===================================
@@ -817,25 +934,32 @@ async function loadAnalytics() {
 
 function displayAnalytics(trendsData) {
     const container = document.getElementById('analyticsCharts');
+    const peakExpense = Math.max(...trendsData.map(m => m.expense), 1);
 
     container.innerHTML = `
-    <div style="padding: var(--space-lg);">
+    <div class="analytics-trend-wrap" style="padding: var(--space-lg);">
       <h4>6-Month Spending Trend</h4>
-      <div style="display: flex; flex-direction: column; gap: var(--space-md); margin-top: var(--space-lg);">
-        ${trendsData.map(month => `
-          <div>
+      <div class="analytics-trend-list" style="display: flex; flex-direction: column; gap: var(--space-md); margin-top: var(--space-lg);">
+        ${trendsData.map((month, index) => `
+          <div class="trend-row">
             <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-xs);">
               <span>${month.monthName} ${month.year}</span>
               <span class="text-danger">${formatCurrency(month.expense)}</span>
             </div>
             <div class="category-bar">
-              <div class="category-progress" style="width: ${(month.expense / Math.max(...trendsData.map(m => m.expense))) * 100}%"></div>
+              <div class="category-progress trend-bar-fill" style="--bar-target:${(month.expense / peakExpense) * 100}%; --bar-delay:${index * 90}ms;"></div>
             </div>
           </div>
         `).join('')}
       </div>
     </div>
   `;
+
+    requestAnimationFrame(() => {
+        container.querySelectorAll('.trend-bar-fill').forEach((bar) => {
+            bar.classList.add('animate');
+        });
+    });
 }
 
 // ===================================

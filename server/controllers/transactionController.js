@@ -545,6 +545,8 @@ export const deleteTransaction = async (req, res) => {
             }
 
             await transaction.deleteOne();
+            await invalidateUserCache(req.user.id, 'transactions');
+            await invalidateUserCache(req.user.id, 'analytics');
             return res.status(200).json({
                 success: true,
                 message: 'Transaction deleted successfully',
@@ -565,6 +567,8 @@ export const deleteTransaction = async (req, res) => {
         }
 
         await transaction.deleteOne();
+        await invalidateUserCache(req.user.id, 'transactions');
+        await invalidateUserCache(req.user.id, 'analytics');
 
         return res.status(200).json({
             success: true,
