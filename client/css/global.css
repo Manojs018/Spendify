@@ -274,6 +274,30 @@ select:focus {
     box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.5); /* Stronger focus indicator */
 }
 
+select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    padding-right: 44px;
+    background-image:
+        linear-gradient(45deg, transparent 50%, var(--text-secondary) 50%),
+        linear-gradient(135deg, var(--text-secondary) 50%, transparent 50%);
+    background-position:
+        calc(100% - 20px) calc(50% + 1px),
+        calc(100% - 14px) calc(50% + 1px);
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+}
+
+select option {
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+}
+
+select option[value=""] {
+    color: var(--text-muted);
+}
+
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible,
