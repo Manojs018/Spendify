@@ -526,6 +526,9 @@ async function handleTransactionSubmit(e) {
             if (currentPage === 'transactions') {
                 loadAllTransactions();
             }
+            if (currentPage === 'analytics') {
+                loadAnalytics();
+            }
             if (formData.isRecurring) {
                 // If on recurring page, reload it
                 if (currentPage === 'recurring') loadRecurringTransactions();
@@ -912,54 +915,588 @@ function setupInteractiveMotion() {
 // ANALYTICS
 // ===================================
 
+let categoryChartInstance = null;
+let monthlyChartInstance = null;
+let trendChartInstance = null;
+let overviewChartInstance = null;
+
+// All raw expense + income data cached for client-side filtering
+let allExpenseData = [];
+let allIncomeData = [];
+
+/**
+ * Fetches ALL transactions of a given type by paginating through results.
+ * The server enforces a max limit of 100 per request, so we loop until done.
+ */
+async function fetchAllTransactions(type) {
+    const PAGE_SIZE = 100;
+    let page = 1;
+    let collected = [];
+    let hasMore = true;
+
+    while (hasMore) {
+        try {
+            const res = await apiRequest(
+                `${API_ENDPOINTS.transactions}?type=${type}&limit=${PAGE_SIZE}&page=${page}&sort=-date`
+            );
+            if (!res.success || !res.data || res.data.length === 0) {
+                hasMore = false;
+            } else {
+                collected = collected.concat(res.data);
+                if (collected.length >= res.total || res.data.length < PAGE_SIZE) {
+                    hasMore = false;
+                } else {
+                    page++;
+                }
+            }
+        } catch {
+            hasMore = false;
+        }
+    }
+    return collected;
+}
+
 async function loadAnalytics() {
-    const container = document.getElementById('analyticsCharts');
-    container.innerHTML = `
-      <div style="padding: var(--space-lg);">
-        <div class="skeleton skeleton-title"></div>
-        ${getSkeletonHTML('category', 6)}
-      </div>
-    `;
+    // Show loading in chart areas
+    const loaders = document.querySelectorAll('.chart-container .loading-state');
+    loaders.forEach(l => l && l.classList.remove('hidden'));
 
     try {
-        const response = await apiRequest(API_ENDPOINTS.analyticsTrends);
+        // Fetch ALL transactions using pagination (server enforces max limit=100)
+        const [allExpenses, allIncomes] = await Promise.all([
+            fetchAllTransactions('expense'),
+            fetchAllTransactions('income')
+        ]);
 
-        if (response.success) {
-            displayAnalytics(response.data);
+        allExpenseData = allExpenses.map(t => ({
+            ...t,
+            dateObj: new Date(t.date)
+        })).sort((a, b) => a.dateObj - b.dateObj);
+
+        allIncomeData = allIncomes.map(t => ({
+            ...t,
+            dateObj: new Date(t.date)
+        })).sort((a, b) => a.dateObj - b.dateObj);
+
+        populateAnalyticsCategoryFilter();
+
+        // Bind filters (clone to remove old listeners)
+        const dateRangeSelect = document.getElementById('analyticsDateRange');
+        const categorySelect = document.getElementById('analyticsCategoryFilter');
+
+        const newDateRangeSelect = dateRangeSelect.cloneNode(true);
+        dateRangeSelect.parentNode.replaceChild(newDateRangeSelect, dateRangeSelect);
+
+        const newCategorySelect = categorySelect.cloneNode(true);
+        categorySelect.parentNode.replaceChild(newCategorySelect, categorySelect);
+
+        newDateRangeSelect.addEventListener('change', updateAnalyticsView);
+        newCategorySelect.addEventListener('change', updateAnalyticsView);
+
+        // Bind export button
+        const exportBtn = document.getElementById('exportChartsBtn');
+        if (exportBtn) {
+            exportBtn.onclick = exportChartsAsPNG;
         }
+
+        updateAnalyticsView();
     } catch (error) {
-        container.innerHTML = '<div class="empty-state"><p>Failed to load analytics</p></div>';
+        console.error('Failed to load analytics', error);
+        showToast('Failed to load analytics data', 'error');
     }
 }
 
-function displayAnalytics(trendsData) {
-    const container = document.getElementById('analyticsCharts');
-    const peakExpense = Math.max(...trendsData.map(m => m.expense), 1);
+function populateAnalyticsCategoryFilter() {
+    const categories = [...new Set(allExpenseData.map(t => t.category))].sort();
+    const select = document.getElementById('analyticsCategoryFilter');
+    if (!select) return;
+    const currValue = select.value;
+    select.innerHTML = '<option value="all">All Categories</option>' +
+        categories.map(c => `<option value="${c}">${escapeHTML(c)}</option>`).join('');
+    if (categories.includes(currValue)) select.value = currValue;
+}
 
-    container.innerHTML = `
-    <div class="analytics-trend-wrap" style="padding: var(--space-lg);">
-      <h4>6-Month Spending Trend</h4>
-      <div class="analytics-trend-list" style="display: flex; flex-direction: column; gap: var(--space-md); margin-top: var(--space-lg);">
-        ${trendsData.map((month, index) => `
-          <div class="trend-row">
-            <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-xs);">
-              <span>${month.monthName} ${month.year}</span>
-              <span class="text-danger">${formatCurrency(month.expense)}</span>
-            </div>
-            <div class="category-bar">
-              <div class="category-progress trend-bar-fill" style="--bar-target:${(month.expense / peakExpense) * 100}%; --bar-delay:${index * 90}ms;"></div>
-            </div>
-          </div>
-        `).join('')}
-      </div>
-    </div>
-  `;
+function getDateCutoff(range, now) {
+    if (range === 'all') return null;
+    const days = parseInt(range);
+    return new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+}
 
-    requestAnimationFrame(() => {
-        container.querySelectorAll('.trend-bar-fill').forEach((bar) => {
-            bar.classList.add('animate');
-        });
+function filterByDateAndCategory(data, cutoff, category) {
+    return data.filter(t => {
+        const dateOk = !cutoff || t.dateObj >= cutoff;
+        const catOk = category === 'all' || t.category === category;
+        return dateOk && catOk;
     });
+}
+
+function updateAnalyticsView() {
+    const range = document.getElementById('analyticsDateRange').value;
+    const category = document.getElementById('analyticsCategoryFilter').value;
+    const now = new Date();
+    const cutoff = getDateCutoff(range, now);
+
+    // Filter expenses & incomes
+    const filteredExpenses = filterByDateAndCategory(allExpenseData, cutoff, category);
+    const filteredIncomes = filterByDateAndCategory(allIncomeData, cutoff, 'all'); // income always "all categories"
+
+    // ── KPI Stats ────────────────────────────────────────────────
+    const totalExpense = filteredExpenses.reduce((s, t) => s + t.amount, 0);
+    document.getElementById('analyticsTotalExpense').textContent = formatCurrency(totalExpense);
+    document.getElementById('analyticsTxnCount').textContent = filteredExpenses.length;
+
+    // Highest category
+    const catMap = {};
+    filteredExpenses.forEach(t => { catMap[t.category] = (catMap[t.category] || 0) + t.amount; });
+    let topCat = 'N/A', topVal = 0;
+    for (const [cat, val] of Object.entries(catMap)) {
+        if (val > topVal) { topVal = val; topCat = cat; }
+    }
+    document.getElementById('analyticsHighestCategory').textContent = topCat;
+
+    // Average daily
+    let daysDivisor = 1;
+    if (range === 'all') {
+        if (filteredExpenses.length > 0) {
+            const diff = Math.abs(now - filteredExpenses[0].dateObj);
+            daysDivisor = Math.max(1, Math.ceil(diff / 86400000));
+        }
+    } else {
+        daysDivisor = parseInt(range);
+    }
+    document.getElementById('analyticsAvgDaily').textContent = formatCurrency(totalExpense / daysDivisor);
+
+    // ── Draw all 4 charts ────────────────────────────────────────
+    drawOverviewChart(filteredIncomes, filteredExpenses, range);
+    drawCategoryChart(catMap);
+    drawMonthlyChart(filteredExpenses);
+    drawTrendChart(filteredExpenses, range);
+}
+
+// ── Shared chart defaults ────────────────────────────────────────────────
+const commonChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+        legend: {
+            display: false, // we use custom legends mostly
+            labels: { color: '#c2d2e8', font: { family: "'Manrope', sans-serif", size: 12 } }
+        },
+        tooltip: {
+            backgroundColor: 'rgba(9, 20, 39, 0.96)',
+            titleColor: '#f6fbff',
+            bodyColor: '#c2d2e8',
+            borderColor: 'rgba(170, 210, 255, 0.22)',
+            borderWidth: 1,
+            padding: 14,
+            titleFont: { size: 13, weight: '700', family: "'Space Grotesk', sans-serif" },
+            bodyFont: { size: 13, family: "'Manrope', sans-serif" },
+            cornerRadius: 10,
+            callbacks: {
+                label: ctx => ` ${formatCurrency(ctx.parsed.y ?? ctx.parsed)}`
+            }
+        }
+    }
+};
+
+const CHART_COLORS = [
+    '#c2b2f6', '#25f2b5', '#ff5a7a', '#ffc247',
+    '#33d4ff', '#f6b2c2', '#b2f6c2', '#4facfe',
+    '#f6c2b2', '#b2e2f6'
+];
+
+// ── 1. Overview Chart: Income (line) + Expense (bar) per month ────────────
+function drawOverviewChart(incomes, expenses, range) {
+    const ctx = document.getElementById('overviewChart');
+    const emptyEl = document.getElementById('overviewChartEmpty');
+    if (!ctx) return;
+
+    // Build month-keyed maps
+    const incomeMap = {};
+    const expenseMap = {};
+
+    const addToMap = (map, items) => items.forEach(t => {
+        const key = t.dateObj.toLocaleString('default', { month: 'short', year: '2-digit' });
+        map[key] = (map[key] || 0) + t.amount;
+    });
+    addToMap(incomeMap, incomes);
+    addToMap(expenseMap, expenses);
+
+    // Build sorted label set
+    const labelSet = new Set([...Object.keys(incomeMap), ...Object.keys(expenseMap)]);
+
+    // For fixed ranges, populate all months in window
+    if (range !== 'all') {
+        const months = parseInt(range) > 60 ? 3 : (parseInt(range) > 14 ? 2 : 1);
+        const now = new Date();
+        for (let i = months - 1; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const key = d.toLocaleString('default', { month: 'short', year: '2-digit' });
+            labelSet.add(key);
+        }
+    }
+
+    const labels = [...labelSet].sort((a, b) => {
+        const pa = new Date('1 ' + a), pb = new Date('1 ' + b);
+        return pa - pb;
+    });
+
+    if (labels.length === 0) {
+        emptyEl.classList.remove('hidden');
+        ctx.style.display = 'none';
+        if (overviewChartInstance) { overviewChartInstance.destroy(); overviewChartInstance = null; }
+        return;
+    }
+    emptyEl.classList.add('hidden');
+    ctx.style.display = 'block';
+
+    const incomeData = labels.map(l => incomeMap[l] || 0);
+    const expenseData = labels.map(l => expenseMap[l] || 0);
+
+    if (overviewChartInstance) overviewChartInstance.destroy();
+
+    const chartCtx = ctx.getContext('2d');
+
+    // Gradient fill for income line
+    const incGrad = chartCtx.createLinearGradient(0, 0, 0, 340);
+    incGrad.addColorStop(0, 'rgba(37, 242, 181, 0.30)');
+    incGrad.addColorStop(1, 'rgba(37, 242, 181, 0.02)');
+
+    overviewChartInstance = new Chart(chartCtx, {
+        data: {
+            labels,
+            datasets: [
+                {
+                    type: 'bar',
+                    label: 'Expenses',
+                    data: expenseData,
+                    backgroundColor: 'rgba(194, 178, 246, 0.65)',
+                    hoverBackgroundColor: 'rgba(194, 178, 246, 0.9)',
+                    borderRadius: 7,
+                    borderSkipped: false,
+                    yAxisID: 'y'
+                },
+                {
+                    type: 'line',
+                    label: 'Income',
+                    data: incomeData,
+                    borderColor: '#25f2b5',
+                    backgroundColor: incGrad,
+                    fill: true,
+                    tension: 0.45,
+                    pointBackgroundColor: '#071226',
+                    pointBorderColor: '#25f2b5',
+                    pointBorderWidth: 2.5,
+                    pointRadius: 5,
+                    pointHoverRadius: 8,
+                    borderWidth: 3,
+                    yAxisID: 'y'
+                }
+            ]
+        },
+        options: {
+            ...commonChartOptions,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                ...commonChartOptions.plugins,
+                legend: { display: false },
+                tooltip: {
+                    ...commonChartOptions.plugins.tooltip,
+                    callbacks: {
+                        label: ctx => ` ${ctx.dataset.label}: ${formatCurrency(ctx.parsed.y)}`
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(170, 210, 255, 0.07)', drawBorder: false },
+                    ticks: {
+                        color: '#8ea2bf',
+                        padding: 10,
+                        callback: v => '$' + (v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v)
+                    },
+                    border: { display: false }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#8ea2bf', padding: 8 },
+                    border: { display: false }
+                }
+            }
+        }
+    });
+}
+
+// ── 2. Category Doughnut Chart ─────────────────────────────────────────────
+function drawCategoryChart(catMap) {
+    const ctx = document.getElementById('categoryChart');
+    const emptyEl = document.getElementById('categoryChartEmpty');
+    const badgesEl = document.getElementById('categoryBadges');
+    if (!ctx) return;
+
+    const keys = Object.keys(catMap);
+
+    if (keys.length === 0) {
+        emptyEl.classList.remove('hidden');
+        ctx.style.display = 'none';
+        if (badgesEl) badgesEl.innerHTML = '';
+        if (categoryChartInstance) { categoryChartInstance.destroy(); categoryChartInstance = null; }
+        return;
+    }
+    emptyEl.classList.add('hidden');
+    ctx.style.display = 'block';
+
+    if (categoryChartInstance) categoryChartInstance.destroy();
+
+    const colors = keys.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]);
+    const total = keys.reduce((s, k) => s + catMap[k], 0);
+
+    categoryChartInstance = new Chart(ctx.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: keys,
+            datasets: [{
+                data: Object.values(catMap),
+                backgroundColor: colors,
+                borderWidth: 0,
+                hoverOffset: 10,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            ...commonChartOptions,
+            cutout: '70%',
+            plugins: {
+                ...commonChartOptions.plugins,
+                tooltip: {
+                    ...commonChartOptions.plugins.tooltip,
+                    callbacks: {
+                        label: ctx => {
+                            const pct = ((ctx.parsed / total) * 100).toFixed(1);
+                            return ` ${ctx.label}: ${formatCurrency(ctx.parsed)} (${pct}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Render category badges below chart
+    if (badgesEl) {
+        badgesEl.innerHTML = keys.map((cat, i) => {
+            const pct = ((catMap[cat] / total) * 100).toFixed(1);
+            return `
+            <div class="cat-badge-item">
+                <span class="cat-badge-dot" style="background:${colors[i]};"></span>
+                <span class="cat-badge-name">${escapeHTML(cat)}</span>
+                <span class="cat-badge-pct">${pct}%</span>
+                <span class="cat-badge-val">${formatCurrency(catMap[cat])}</span>
+            </div>`;
+        }).join('');
+    }
+}
+
+// ── 3. Monthly Bar Chart ───────────────────────────────────────────────────
+function drawMonthlyChart(data) {
+    const ctx = document.getElementById('monthlyChart');
+    const emptyEl = document.getElementById('monthlyChartEmpty');
+    if (!ctx) return;
+
+    if (data.length === 0) {
+        emptyEl.classList.remove('hidden');
+        ctx.style.display = 'none';
+        if (monthlyChartInstance) { monthlyChartInstance.destroy(); monthlyChartInstance = null; }
+        return;
+    }
+    emptyEl.classList.add('hidden');
+    ctx.style.display = 'block';
+
+    const monthMap = {};
+    data.forEach(t => {
+        const m = t.dateObj.toLocaleString('default', { month: 'short', year: '2-digit' });
+        monthMap[m] = (monthMap[m] || 0) + t.amount;
+    });
+
+    const labels = Object.keys(monthMap);
+    const values = Object.values(monthMap);
+    const maxVal = Math.max(...values);
+
+    // Color bars by intensity
+    const bgs = values.map(v => {
+        const ratio = v / maxVal;
+        return `rgba(194, 178, 246, ${0.4 + ratio * 0.55})`;
+    });
+    const hovers = values.map(v => {
+        const ratio = v / maxVal;
+        return `rgba(194, 178, 246, ${0.65 + ratio * 0.3})`;
+    });
+
+    if (monthlyChartInstance) monthlyChartInstance.destroy();
+
+    monthlyChartInstance = new Chart(ctx.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Expenses',
+                data: values,
+                backgroundColor: bgs,
+                hoverBackgroundColor: hovers,
+                borderRadius: 8,
+                borderSkipped: false
+            }]
+        },
+        options: {
+            ...commonChartOptions,
+            plugins: {
+                ...commonChartOptions.plugins,
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(170, 210, 255, 0.07)', drawBorder: false },
+                    ticks: {
+                        color: '#8ea2bf', padding: 10,
+                        callback: v => '$' + (v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v)
+                    },
+                    border: { display: false }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#8ea2bf', padding: 8 },
+                    border: { display: false }
+                }
+            }
+        }
+    });
+}
+
+// ── 4. Daily Trend Line Chart ──────────────────────────────────────────────
+function drawTrendChart(data, range) {
+    const ctx = document.getElementById('trendChart');
+    const emptyEl = document.getElementById('trendChartEmpty');
+    const badge = document.getElementById('trendTotalBadge');
+    if (!ctx) return;
+
+    if (data.length === 0) {
+        emptyEl.classList.remove('hidden');
+        ctx.style.display = 'none';
+        if (badge) badge.textContent = '';
+        if (trendChartInstance) { trendChartInstance.destroy(); trendChartInstance = null; }
+        return;
+    }
+    emptyEl.classList.add('hidden');
+    ctx.style.display = 'block';
+
+    // Build day map
+    const dayMap = {};
+    data.forEach(t => {
+        const key = t.dateObj.toLocaleDateString('default', { month: 'short', day: 'numeric' });
+        dayMap[key] = (dayMap[key] || 0) + t.amount;
+    });
+
+    const labels = [];
+    const points = [];
+
+    if (range !== 'all') {
+        const days = parseInt(range);
+        for (let i = days - 1; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const key = d.toLocaleDateString('default', { month: 'short', day: 'numeric' });
+            labels.push(key);
+            points.push(dayMap[key] || 0);
+        }
+    } else {
+        // All-time: use unique days from data
+        Object.keys(dayMap).forEach(k => { labels.push(k); points.push(dayMap[k]); });
+    }
+
+    const totalSpend = points.reduce((s, v) => s + v, 0);
+    if (badge) {
+        badge.textContent = `Total: ${formatCurrency(totalSpend)}`;
+    }
+
+    if (trendChartInstance) trendChartInstance.destroy();
+
+    const chartCtx = ctx.getContext('2d');
+    const grad = chartCtx.createLinearGradient(0, 0, 0, 300);
+    grad.addColorStop(0, 'rgba(51, 212, 255, 0.35)');
+    grad.addColorStop(1, 'rgba(51, 212, 255, 0.0)');
+
+    trendChartInstance = new Chart(chartCtx, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Daily Spending',
+                data: points,
+                borderColor: '#33d4ff',
+                backgroundColor: grad,
+                fill: true,
+                tension: 0.42,
+                pointBackgroundColor: '#071226',
+                pointBorderColor: '#33d4ff',
+                pointBorderWidth: 2.5,
+                pointRadius: 4,
+                pointHoverRadius: 7,
+                borderWidth: 2.5
+            }]
+        },
+        options: {
+            ...commonChartOptions,
+            plugins: {
+                ...commonChartOptions.plugins,
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(170, 210, 255, 0.07)', drawBorder: false },
+                    ticks: {
+                        color: '#8ea2bf', padding: 10,
+                        callback: v => '$' + (v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v)
+                    },
+                    border: { display: false }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { maxTicksLimit: 14, color: '#8ea2bf', padding: 8 },
+                    border: { display: false }
+                }
+            }
+        }
+    });
+}
+
+// ── Export all charts as a combined PNG ───────────────────────────────────
+function exportChartsAsPNG() {
+    const chartInstances = [
+        { id: 'overviewChart', name: 'Overview' },
+        { id: 'categoryChart', name: 'Category' },
+        { id: 'monthlyChart', name: 'Monthly' },
+        { id: 'trendChart', name: 'Trend' }
+    ];
+
+    // Export each chart individually
+    let exported = 0;
+    chartInstances.forEach(({ id, name }) => {
+        const canvas = document.getElementById(id);
+        if (!canvas || canvas.style.display === 'none') return;
+        const link = document.createElement('a');
+        link.download = `spendify-${name.toLowerCase()}-chart.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        exported++;
+    });
+
+    if (exported === 0) {
+        showToast('No charts to export. Add some expenses first.', 'error');
+    } else {
+        showToast(`${exported} chart(s) exported successfully!`, 'success');
+    }
 }
 
 // ===================================
