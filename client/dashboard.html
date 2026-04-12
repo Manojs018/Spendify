@@ -266,17 +266,116 @@
 
         <!-- Analytics Content (Hidden by default) -->
         <div class="content hidden" id="analyticsContent" role="region" aria-labelledby="spending-analytics-heading">
-            <section class="card">
-                <div class="card-header">
-                    <h3 id="spending-analytics-heading" class="card-title">Spending Analytics</h3>
+
+            <!-- Analytics Topbar -->
+            <div class="analytics-topbar">
+                <div>
+                    <h2 id="spending-analytics-heading" class="analytics-page-title">Charts &amp; Analytics</h2>
+                    <p class="analytics-page-sub">Visual insights into your spending habits</p>
                 </div>
-                <div id="analyticsCharts" aria-busy="false" aria-live="polite">
-                    <div class="loading-state">
-                        <div class="spinner" aria-hidden="true"></div>
-                        <p>Loading analytics...</p>
+                <div class="analytics-controls">
+                    <select id="analyticsDateRange" class="filter-select" aria-label="Filter by Date Range">
+                        <option value="7">Last 7 Days</option>
+                        <option value="30" selected>Last 30 Days</option>
+                        <option value="90">Last 3 Months</option>
+                        <option value="all">All Time</option>
+                    </select>
+                    <select id="analyticsCategoryFilter" class="filter-select" aria-label="Filter by Category">
+                        <option value="all">All Categories</option>
+                    </select>
+                    <button class="btn btn-secondary" id="exportChartsBtn" aria-label="Export charts as image">
+                        <span>⬇ Export</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- KPI Summary Row -->
+            <div class="analytics-kpi-row">
+                <div class="kpi-card kpi-expense">
+                    <div class="kpi-icon">💸</div>
+                    <div class="kpi-info">
+                        <p class="kpi-label">Total Expenses</p>
+                        <h3 class="kpi-value" id="analyticsTotalExpense">$0.00</h3>
                     </div>
                 </div>
+                <div class="kpi-card kpi-category">
+                    <div class="kpi-icon">🏆</div>
+                    <div class="kpi-info">
+                        <p class="kpi-label">Top Category</p>
+                        <h3 class="kpi-value" id="analyticsHighestCategory">N/A</h3>
+                    </div>
+                </div>
+                <div class="kpi-card kpi-avg">
+                    <div class="kpi-icon">📅</div>
+                    <div class="kpi-info">
+                        <p class="kpi-label">Avg Daily Spend</p>
+                        <h3 class="kpi-value" id="analyticsAvgDaily">$0.00</h3>
+                    </div>
+                </div>
+                <div class="kpi-card kpi-txn">
+                    <div class="kpi-icon">🔢</div>
+                    <div class="kpi-info">
+                        <p class="kpi-label">Transactions</p>
+                        <h3 class="kpi-value" id="analyticsTxnCount">0</h3>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Overview Chart (Full Width) - Income vs Expense bar+line combo -->
+            <section class="card analytics-overview-card">
+                <div class="card-header">
+                    <h3 class="card-title">Overview — Income vs Expenses</h3>
+                    <div class="chart-legend-inline">
+                        <span class="clegend-dot" style="background:#25f2b5;"></span><span>Income</span>
+                        <span class="clegend-dot" style="background:#c2b2f6; margin-left:12px;"></span><span>Expenses</span>
+                    </div>
+                </div>
+                <div class="chart-container" style="position:relative; height:340px;">
+                    <canvas id="overviewChart"></canvas>
+                    <div id="overviewChartEmpty" class="empty-state hidden"><p>No data available</p></div>
+                </div>
             </section>
+
+            <!-- Bottom Grid: Pie + Bar + Line -->
+            <div class="analytics-charts-grid">
+
+                <!-- Pie: Spending by Category -->
+                <section class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Spending by Category</h3>
+                    </div>
+                    <div class="chart-container" style="position:relative; height:290px;">
+                        <canvas id="categoryChart"></canvas>
+                        <div id="categoryChartEmpty" class="empty-state hidden"><p>No data available</p></div>
+                    </div>
+                    <!-- Category badge list -->
+                    <div id="categoryBadges" class="category-badges"></div>
+                </section>
+
+                <!-- Bar: Monthly Expenses -->
+                <section class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Monthly Expenses</h3>
+                    </div>
+                    <div class="chart-container" style="position:relative; height:290px;">
+                        <canvas id="monthlyChart"></canvas>
+                        <div id="monthlyChartEmpty" class="empty-state hidden"><p>No data available</p></div>
+                    </div>
+                </section>
+
+                <!-- Line: Daily Spending Trend (Full Width) -->
+                <section class="card analytics-full-col">
+                    <div class="card-header">
+                        <h3 class="card-title">Daily Spending Trend</h3>
+                        <span id="trendTotalBadge" class="trend-badge"></span>
+                    </div>
+                    <div class="chart-container" style="position:relative; height:300px;">
+                        <canvas id="trendChart"></canvas>
+                        <div id="trendChartEmpty" class="empty-state hidden"><p>No data available</p></div>
+                    </div>
+                </section>
+
+            </div>
         </div>
 
         <!-- Transfer Content (Hidden by default) -->
@@ -460,6 +559,7 @@
     </script>
 
     <!-- Scripts -->
+    <script src="js/chart.min.js"></script>
     <script src="js/config.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/dashboard.js"></script>
