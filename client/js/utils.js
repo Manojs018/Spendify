@@ -106,6 +106,20 @@ function formatDateForInput(date) {
     return `${year}-${month}-${day}`;
 }
 
+// Escape HTML
+function escapeHTML(str) {
+    if (!str) return '';
+    return str.replace(/[&<>'"]/g, 
+        tag => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            "'": '&#39;',
+            '"': '&quot;'
+        }[tag] || tag)
+    );
+}
+
 // Get auth token
 function getToken() {
     return localStorage.getItem(STORAGE_KEYS.token);
