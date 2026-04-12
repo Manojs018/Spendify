@@ -807,6 +807,258 @@
 }
 
 /* ===================================
+   ANALYTICS DASHBOARD — PREMIUM REDESIGN
+   =================================== */
+
+/* ── Topbar ─────────────────────────────────────────────────────────── */
+.analytics-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--space-lg);
+    flex-wrap: wrap;
+    gap: var(--space-md);
+}
+
+.analytics-page-title {
+    font-family: var(--font-display);
+    font-size: clamp(1.6rem, 2.2vw, 2.4rem);
+    letter-spacing: -0.02em;
+    margin: 0 0 4px 0;
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.analytics-page-sub {
+    font-size: var(--font-size-sm);
+    color: var(--text-tertiary);
+    margin: 0;
+}
+
+.analytics-controls {
+    display: flex;
+    gap: var(--space-sm);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* ── KPI Row ─────────────────────────────────────────────────────────── */
+.analytics-kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-md);
+    margin-bottom: var(--space-lg);
+}
+
+.kpi-card {
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    border: 1px solid var(--glass-border);
+    position: relative;
+    overflow: hidden;
+    transition: transform var(--transition-base), box-shadow var(--transition-base);
+    animation: riseIn 500ms ease both;
+}
+
+.kpi-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity var(--transition-base);
+    border-radius: inherit;
+}
+
+.kpi-card:hover { transform: translateY(-5px); }
+.kpi-card:hover::before { opacity: 1; }
+
+.kpi-expense {
+    background: linear-gradient(140deg, rgba(255, 90, 122, 0.18), rgba(255, 90, 122, 0.06));
+    box-shadow: 0 8px 24px rgba(255, 90, 122, 0.12);
+}
+.kpi-expense:hover { box-shadow: 0 18px 36px rgba(255, 90, 122, 0.22); }
+.kpi-expense::before { background: linear-gradient(140deg, rgba(255, 90, 122, 0.08), transparent); }
+
+.kpi-category {
+    background: linear-gradient(140deg, rgba(255, 194, 71, 0.18), rgba(255, 194, 71, 0.06));
+    box-shadow: 0 8px 24px rgba(255, 194, 71, 0.12);
+}
+.kpi-category:hover { box-shadow: 0 18px 36px rgba(255, 194, 71, 0.22); }
+.kpi-category::before { background: linear-gradient(140deg, rgba(255, 194, 71, 0.08), transparent); }
+
+.kpi-avg {
+    background: linear-gradient(140deg, rgba(51, 212, 255, 0.18), rgba(51, 212, 255, 0.06));
+    box-shadow: 0 8px 24px rgba(51, 212, 255, 0.12);
+}
+.kpi-avg:hover { box-shadow: 0 18px 36px rgba(51, 212, 255, 0.22); }
+.kpi-avg::before { background: linear-gradient(140deg, rgba(51, 212, 255, 0.08), transparent); }
+
+.kpi-txn {
+    background: linear-gradient(140deg, rgba(37, 242, 181, 0.18), rgba(37, 242, 181, 0.06));
+    box-shadow: 0 8px 24px rgba(37, 242, 181, 0.12);
+}
+.kpi-txn:hover { box-shadow: 0 18px 36px rgba(37, 242, 181, 0.22); }
+.kpi-txn::before { background: linear-gradient(140deg, rgba(37, 242, 181, 0.08), transparent); }
+
+.kpi-icon {
+    font-size: 2rem;
+    line-height: 1;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+}
+
+.kpi-info { flex: 1; min-width: 0; }
+
+.kpi-label {
+    font-size: var(--font-size-xs);
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0 0 4px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.kpi-value {
+    font-family: var(--font-display);
+    font-size: clamp(1.1rem, 1.4vw, 1.6rem);
+    letter-spacing: -0.01em;
+    margin: 0;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ── Overview Card ───────────────────────────────────────────────────── */
+.analytics-overview-card {
+    margin-bottom: var(--space-lg);
+    animation: riseIn 560ms ease both;
+    animation-delay: 80ms;
+}
+
+.chart-legend-inline {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+}
+
+.clegend-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+/* ── Charts Grid ──────────────────────────────────────────────────────── */
+.analytics-charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-lg);
+    animation: riseIn 600ms ease both;
+    animation-delay: 150ms;
+}
+
+.analytics-full-col {
+    grid-column: 1 / -1;
+}
+
+/* ── Trend badge (in card header) ────────────────────────────────────── */
+.trend-badge {
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    color: var(--accent-primary);
+    background: rgba(51, 212, 255, 0.12);
+    border: 1px solid rgba(51, 212, 255, 0.28);
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
+    white-space: nowrap;
+}
+
+/* ── Category Badges ─────────────────────────────────────────────────── */
+.category-badges {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--border-color);
+    margin-top: var(--space-md);
+    max-height: 180px;
+    overflow-y: auto;
+}
+
+.cat-badge-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--font-size-sm);
+    padding: 4px 0;
+}
+
+.cat-badge-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+.cat-badge-name {
+    flex: 1;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cat-badge-pct {
+    font-weight: 700;
+    color: var(--text-primary);
+    min-width: 38px;
+    text-align: right;
+}
+
+.cat-badge-val {
+    color: var(--text-tertiary);
+    min-width: 70px;
+    text-align: right;
+    font-size: var(--font-size-xs);
+}
+
+/* ── Analytics Responsive ─────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+    .analytics-kpi-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 820px) {
+    .analytics-charts-grid {
+        grid-template-columns: 1fr;
+    }
+    .analytics-full-col {
+        grid-column: 1;
+    }
+}
+
+@media (max-width: 560px) {
+    .analytics-kpi-row {
+        grid-template-columns: 1fr 1fr;
+    }
+    .analytics-topbar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+/* ===================================
    RESPONSIVE DESIGN
    =================================== */
 
