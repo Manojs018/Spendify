@@ -23,6 +23,7 @@ import cookieParser from 'cookie-parser';
 import passport from './middleware/passport.js';
 import { startCronJobs } from './utils/cronJob.js';
 import recurringTransactionRoutes from './routes/recurringTransactionRoutes.js';
+import budgetRoutes from './routes/budgetRoutes.js';
 
 // Load env vars
 dotenv.config();
@@ -111,6 +112,7 @@ app.use('/api/cards', cardRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/transfer', transferRoutes);
 app.use('/api/recurring-transactions', recurringTransactionRoutes);
+app.use('/api/budgets', budgetRoutes);
 app.use('/api/csrf-token', csrfRoutes);
 
 // Welcome route
