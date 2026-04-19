@@ -17,6 +17,8 @@
     <link rel="stylesheet" href="css/variables.css">
     <link rel="stylesheet" href="css/global.css">
     <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/budget.css">
+    <link rel="stylesheet" href="css/search.css">
 </head>
 
 <body class="dashboard-page">
@@ -54,6 +56,10 @@
                 <span class="nav-icon" aria-hidden="true">📅</span>
                 <span class="nav-text">Recurring</span>
             </a>
+            <a href="#" class="nav-item" data-page="budget">
+                <span class="nav-icon" aria-hidden="true">🎯</span>
+                <span class="nav-text">Budgets</span>
+            </a>
         </nav>
 
         <div class="sidebar-footer">
@@ -72,7 +78,34 @@
                 <button class="menu-toggle" id="menuToggle" aria-label="Toggle Navigation Menu" aria-expanded="false" aria-controls="sidebar">☰</button>
                 <h2 id="pageTitle" tabindex="-1">Dashboard</h2>
             </div>
+
+            <!-- ── Global Search Bar ── -->
+            <div class="global-search-container" role="search" aria-label="Search Transactions" style="flex: 1; max-width: 450px; margin: 0 20px;">
+                <div class="search-bar-inner">
+                    <span class="search-icon" aria-hidden="true">🔍</span>
+                    <input
+                        type="search"
+                        id="globalSearchInput"
+                        class="search-bar-input"
+                        placeholder="Search all transactions…"
+                        autocomplete="off"
+                        aria-label="Search transactions"
+                    >
+                    <button class="search-clear-btn hidden" id="searchClearBtn" aria-label="Clear search">✕</button>
+                </div>
+            </div>
             <div class="header-right">
+                <div class="user-currency" style="margin-right: 15px;">
+                    <select id="userBaseCurrency" aria-label="Base Currency" style="background: transparent; border: 1px solid var(--border-color); color: var(--text-primary); font-size: 14px; font-weight: bold; padding: 5px 10px; border-radius: 8px; cursor: pointer; outline: none;">
+                        <option value="USD">USD ($)</option>
+                        <option value="EUR">EUR (€)</option>
+                        <option value="GBP">GBP (£)</option>
+                        <option value="INR">INR (₹)</option>
+                        <option value="JPY">JPY (¥)</option>
+                        <option value="CAD">CAD ($)</option>
+                        <option value="AUD">AUD ($)</option>
+                    </select>
+                </div>
                 <div class="user-info" tabindex="0" aria-label="User Profile">
                     <div class="user-avatar" aria-hidden="true">👤</div>
                     <div class="user-details">
@@ -230,28 +263,124 @@
                     </div>
                 </div>
 
-                <!-- Filters -->
-                <div class="filters" role="search" aria-label="Filter Transactions">
-                    <select id="filterType" class="filter-select" aria-label="Filter by Type">
-                        <option value="">All Types</option>
-                        <option value="income">Income</option>
-                        <option value="expense">Expense</option>
-                    </select>
-                    <select id="filterCategory" class="filter-select" aria-label="Filter by Category">
-                        <option value="">All Categories</option>
-                    </select>
-                    <input type="month" id="filterMonth" class="filter-input" aria-label="Filter by Month">
-                    <input type="search" id="searchTransactions" class="filter-input" placeholder="Search..." aria-label="Search Transactions by description">
+                <!-- ── Advanced Filters Toggle ── -->
+                <div class="search-bar-wrapper" aria-label="Advanced Filters">
+                    <div style="flex:1"></div> <!-- Spacer to align button to right -->
+                    <button class="btn btn-secondary filter-toggle-btn" id="filterToggleBtn" aria-expanded="false" aria-controls="advancedFiltersPanel">
+                        <span>⚙ Advanced Filters</span>
+                        <span class="filter-badge hidden" id="filterBadge">0</span>
+                    </button>
                 </div>
 
+                <!-- ── Advanced Filters Panel ── -->
+                <div class="advanced-filters-panel hidden" id="advancedFiltersPanel" aria-label="Advanced Filters">
+                    <div class="filters-grid">
+                        <!-- Date Range -->
+                        <div class="filter-group">
+                            <label class="filter-label">📅 Date Range</label>
+                            <div class="filter-row">
+                                <input type="date" id="filterStartDate" class="filter-input-adv" aria-label="Start date" placeholder="Start date">
+                                <span class="filter-sep">→</span>
+                                <input type="date" id="filterEndDate" class="filter-input-adv" aria-label="End date" placeholder="End date">
+                            </div>
+                        </div>
+
+                        <!-- Month Selector -->
+                        <div class="filter-group">
+                            <label class="filter-label">📆 Month</label>
+                            <input type="month" id="filterMonth" class="filter-input-adv" aria-label="Filter by month">
+                        </div>
+
+                        <!-- Category -->
+                        <div class="filter-group">
+                            <label class="filter-label">🗂 Category</label>
+                            <select id="filterCategory" class="filter-input-adv" aria-label="Filter by category">
+                                <option value="">All Categories</option>
+                                <optgroup label="Income">
+                                    <option>Salary</option>
+                                    <option>Freelance</option>
+                                    <option>Investment</option>
+                                    <option>Gift</option>
+                                    <option>Refund</option>
+                                    <option>Transfer</option>
+                                    <option>Other Income</option>
+                                </optgroup>
+                                <optgroup label="Expense">
+                                    <option>Food &amp; Dining</option>
+                                    <option>Shopping</option>
+                                    <option>Transportation</option>
+                                    <option>Bills &amp; Utilities</option>
+                                    <option>Entertainment</option>
+                                    <option>Healthcare</option>
+                                    <option>Education</option>
+                                    <option>Travel</option>
+                                    <option>Other Expense</option>
+                                </optgroup>
+                            </select>
+                        </div>
+
+                        <!-- Amount Range -->
+                        <div class="filter-group">
+                            <label class="filter-label">💰 Amount Range</label>
+                            <div class="filter-row">
+                                <input type="number" id="filterMinAmount" class="filter-input-adv" min="0" step="0.01" placeholder="Min $" aria-label="Minimum amount">
+                                <span class="filter-sep">—</span>
+                                <input type="number" id="filterMaxAmount" class="filter-input-adv" min="0" step="0.01" placeholder="Max $" aria-label="Maximum amount">
+                            </div>
+                        </div>
+
+                        <!-- Type -->
+                        <div class="filter-group">
+                            <label class="filter-label">🔄 Type</label>
+                            <div class="filter-type-btns">
+                                <button class="type-filter-btn active" data-type="" id="typeFilterAll">All</button>
+                                <button class="type-filter-btn income" data-type="income" id="typeFilterIncome">Income</button>
+                                <button class="type-filter-btn expense" data-type="expense" id="typeFilterExpense">Expense</button>
+                            </div>
+                        </div>
+
+                        <!-- Sort -->
+                        <div class="filter-group">
+                            <label class="filter-label">↕ Sort By</label>
+                            <select id="filterSort" class="filter-input-adv" aria-label="Sort transactions">
+                                <option value="-date">Date (Newest)</option>
+                                <option value="date">Date (Oldest)</option>
+                                <option value="-amount">Amount (High → Low)</option>
+                                <option value="amount">Amount (Low → High)</option>
+                                <option value="category">Category (A–Z)</option>
+                                <option value="-category">Category (Z–A)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="filters-actions">
+                        <button class="btn btn-ghost filter-reset-btn" id="clearFiltersBtn" aria-label="Clear all filters">
+                            ✕ Clear All Filters
+                        </button>
+                        <div class="filter-result-count" id="filterResultCount" aria-live="polite"></div>
+                    </div>
+                </div>
+
+                <!-- Active Filter Tags -->
+                <div class="active-filter-tags hidden" id="activeFilterTags" aria-label="Active filters"></div>
+
+                <!-- Transactions List -->
                 <div class="transactions-table" id="allTransactions" role="table" aria-label="Transactions List">
                     <div class="loading-state">
                         <div class="spinner" aria-hidden="true"></div>
                         <p>Loading transactions...</p>
                     </div>
                 </div>
+
+                <!-- Pagination -->
+                <div class="tx-pagination hidden" id="txPagination" aria-label="Pagination">
+                    <button class="btn btn-secondary btn-sm" id="txPrevPage" aria-label="Previous page">← Prev</button>
+                    <span class="tx-page-info" id="txPageInfo"></span>
+                    <button class="btn btn-secondary btn-sm" id="txNextPage" aria-label="Next page">Next →</button>
+                </div>
             </section>
         </div>
+
 
         <!-- Cards Content (Hidden by default) -->
         <div class="content hidden" id="cardsContent" role="region" aria-labelledby="all-cards-heading">
@@ -437,6 +566,117 @@
                     </div>
                 </div>
             </section>
+        <!-- Budget Content (Hidden by default) -->
+        <div class="content hidden" id="budgetContent" role="region" aria-labelledby="budgetHeading">
+            <div class="budget-topbar">
+                <div class="topbar-left">
+                    <h2 id="budgetHeading" class="budget-page-title">Budget Limits & Alerts</h2>
+                    <p class="budget-page-sub">Plan your spending. Stay in control.</p>
+                </div>
+                <div class="budget-topbar-actions">
+                    <select id="budgetMonthSelect" class="form-control" aria-label="Select month for budget"></select>
+                    <button class="btn btn-primary" onclick="toggleBudgetForm()" aria-label="Set or edit budget limits">
+                        <span>🎯 Set Budget</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Budget Form (Collapsible) -->
+            <div id="budgetFormPanel" class="card budget-form-panel collapsed">
+                <div class="card-header">
+                    <h3 class="card-title">Manage Monthly Budget</h3>
+                </div>
+                <form id="budgetForm" onsubmit="handleSaveBudget(event)">
+                    <div class="budget-global-row">
+                        <div class="form-group">
+                            <label for="overallLimitInput">Overall Monthly Budget ($)</label>
+                            <input type="number" id="overallLimitInput" class="form-control" placeholder="0.00" step="0.01" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="alertThresholdInput">Alert Threshold (%)</label>
+                            <input type="number" id="alertThresholdInput" class="form-control" value="80" min="1" max="99" aria-describedby="threshold-desc">
+                            <span id="threshold-desc" class="budget-empty-sub">Trigger alerts when this % is used</span>
+                        </div>
+                    </div>
+
+                    <h4 class="budget-form-section-title">Category-wise Limits</h4>
+                    <div id="categoryLimitInputs"></div>
+
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" onclick="toggleBudgetForm()">Cancel</button>
+                        <button type="submit" id="saveBudgetBtn" class="btn btn-primary">Save Budget</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="budget-kpi-row">
+                <div class="kpi-card glass-glow">
+                    <div class="kpi-icon">💸</div>
+                    <div class="kpi-info">
+                        <p class="kpi-label">Month Total Spent</p>
+                        <h3 class="kpi-value" id="budgetTotalSpent">$0.00</h3>
+                    </div>
+                </div>
+                <div class="kpi-card glass-glow">
+                    <div class="kpi-icon">📋</div>
+                    <div class="kpi-info">
+                        <p class="kpi-label">Categories Tracked</p>
+                        <h3 class="kpi-value" id="budgetCatsTracked">0</h3>
+                    </div>
+                </div>
+                <div class="kpi-card glass-glow">
+                    <div class="kpi-icon">🚨</div>
+                    <div class="kpi-info">
+                        <p class="kpi-label">Budgets Exceeded</p>
+                        <h3 class="kpi-value" id="budgetCatsExceeded">0</h3>
+                    </div>
+                </div>
+                <div class="kpi-card glass-glow">
+                    <div class="kpi-icon">🏆</div>
+                    <div class="kpi-info">
+                        <p class="kpi-label">Top Spend Category</p>
+                        <h3 class="kpi-value" id="budgetTopCat">—</h3>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Overall Progress -->
+            <section class="card budget-overall-card glass-glow">
+                <div class="budget-overall-header">
+                    <h3 class="card-title">Overall Month Progress</h3>
+                    <div class="budget-badge" id="overallStatusBadge">— No Limit Set</div>
+                </div>
+                
+                <div class="budget-amounts-row">
+                    <div class="budget-amount-block">
+                        <span class="budget-amount-label">Spent</span>
+                        <span class="budget-amount-value" id="overallSpentAmt">$0.00</span>
+                    </div>
+                    <div class="budget-amount-block">
+                        <span class="budget-amount-label">Monthly Limit</span>
+                        <span class="budget-amount-value" id="overallLimitAmt">Not Set</span>
+                    </div>
+                    <div class="budget-amount-block">
+                        <span class="budget-amount-label">Remaining</span>
+                        <span class="budget-amount-value" id="overallRemainingAmt">—</span>
+                    </div>
+                </div>
+
+                <div class="budget-progress-track">
+                    <div id="overallProgressBar" class="budget-progress-fill" style="width: 0%"></div>
+                </div>
+                <div style="display:flex; justify-content:flex-end; margin-top:5px;">
+                    <span id="overallProgressPct" style="font-size:var(--font-size-xs); font-weight:700; color:var(--text-tertiary);">0%</span>
+                </div>
+
+                <div id="overallAlertMsg" class="budget-alert-msg hidden"></div>
+            </section>
+
+            <!-- Category Budgets Grid -->
+            <div class="budget-cat-section">
+                <h3 class="card-title" style="margin-left:5px;">Category Breakdown</h3>
+                <div id="categoryBudgetList"></div>
+            </div>
         </div>
     </main>
 
@@ -457,8 +697,19 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="transactionAmount">Amount</label>
-                    <input type="number" id="transactionAmount" placeholder="0.00" step="0.01" min="0.01" required aria-required="true">
+                    <label for="transactionAmount">Amount & Currency</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="number" id="transactionAmount" placeholder="0.00" step="0.01" min="0.01" required aria-required="true" style="flex: 1;">
+                        <select id="transactionCurrency" class="form-control" style="width: auto; min-width: 90px;" required>
+                            <option value="USD">USD</option>
+                            <option value="EUR">EUR</option>
+                            <option value="GBP">GBP</option>
+                            <option value="INR">INR</option>
+                            <option value="JPY">JPY</option>
+                            <option value="CAD">CAD</option>
+                            <option value="AUD">AUD</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="transactionCategory">Category</label>
@@ -546,22 +797,11 @@
     <!-- Toast Notification -->
     <div id="toast" class="toast" aria-live="polite" aria-atomic="true" role="alert"></div>
 
-    <!-- Sentry SDK -->
-    <script src="https://browser.sentry-cdn.com/8.54.0/bundle.min.js" integrity="sha384-H4uW35G/8zI9E1i3Hw2L5V5/0G1o2L3M4N5O6P7Q8R9S/T0U1V2W3X4Y5Z6A7B8C" crossorigin="anonymous"></script>
-    <script>
-        if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-            Sentry.init({
-                dsn: "https://your-public-key@sentry.io/your-project-id", // Replace with your actual DSN
-                integrations: [Sentry.browserTracingIntegration()],
-                tracesSampleRate: 1.0,
-            });
-        }
-    </script>
-
     <!-- Scripts -->
     <script src="js/chart.min.js"></script>
     <script src="js/config.js"></script>
     <script src="js/utils.js"></script>
+    <script src="js/budget.js"></script>
     <script src="js/dashboard.js"></script>
 </body>
 
