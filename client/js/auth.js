@@ -250,24 +250,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (registerNameInput) {
         registerNameInput.addEventListener('input', validateRegistrationForm);
+        registerNameInput.addEventListener('change', validateRegistrationForm);
     }
     if (registerEmailInput) {
         registerEmailInput.addEventListener('input', validateRegistrationForm);
+        registerEmailInput.addEventListener('change', validateRegistrationForm);
     }
 
     if (registerPasswordInput) {
         registerPasswordInput.addEventListener('input', () => {
             updateStrengthUI(registerPasswordInput.value);
-            // Re-validate confirm field if it already has a value
             if (confirmPasswordInput && confirmPasswordInput.value) {
                 validateConfirmPassword();
             }
-            // validateRegistrationForm is called by updateStrengthUI
+        });
+        registerPasswordInput.addEventListener('change', () => {
+            updateStrengthUI(registerPasswordInput.value);
+            validateRegistrationForm();
         });
     }
 
     if (confirmPasswordInput) {
         confirmPasswordInput.addEventListener('input', () => {
+            validateConfirmPassword();
+            validateRegistrationForm();
+        });
+        confirmPasswordInput.addEventListener('change', () => {
             validateConfirmPassword();
             validateRegistrationForm();
         });
@@ -391,4 +399,7 @@ document.addEventListener('DOMContentLoaded', () => {
             hideLoading(submitButton);
         }
     });
+
+    // Initial validation check
+    validateRegistrationForm();
 });
