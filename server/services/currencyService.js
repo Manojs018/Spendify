@@ -1,4 +1,3 @@
-import axios from 'axios';
 import ExchangeRate from '../models/ExchangeRate.js';
 
 const CACHE_LIFETIME = 24 * 60 * 60 * 1000; // 24 hours
@@ -6,8 +5,9 @@ const CACHE_LIFETIME = 24 * 60 * 60 * 1000; // 24 hours
 export const fetchAndCacheRates = async (baseCurrency = 'USD') => {
     try {
         // We use the free open API
-        const response = await axios.get(`https://open.er-api.com/v6/latest/${baseCurrency}`);
-        const rates = response.data.rates;
+        const res = await fetch(`https://open.er-api.com/v6/latest/${baseCurrency}`);
+        const data = await res.json();
+        const rates = data.rates;
 
         if (!rates) throw new Error("Invalid response from exchange API");
 
