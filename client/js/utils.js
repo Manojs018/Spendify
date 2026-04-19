@@ -283,6 +283,15 @@ async function apiRequest(url, options = {}) {
 
     try {
         const response = await fetch(url, finalOptions);
+        
+        // Handle non-JSON responses (e.g. Vercel 500 HTML pages)
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            console.error('Non-JSON Response:', text);
+            throw new Error('The server returned an invalid response. This often happens if environment variables or database connections are misconfigured.');
+        }
+
         const data = await response.json();
 
         if (!response.ok) {
