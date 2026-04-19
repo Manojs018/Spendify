@@ -240,6 +240,30 @@ export const getMe = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// @desc    Update user base currency
+// @route   PATCH /api/auth/me/currency
+// @access  Private
+// ─────────────────────────────────────────────────────────────────────────────
+export const updateBaseCurrency = async (req, res) => {
+    try {
+        const { baseCurrency } = req.body;
+        if (!baseCurrency) {
+            return res.status(400).json({ success: false, message: 'Please provide a base currency' });
+        }
+
+        const user = await User.findByIdAndUpdate(
+            req.user.id,
+            { baseCurrency: baseCurrency.toUpperCase() },
+            { new: true, runValidators: true }
+        );
+
+        return res.status(200).json({ success: true, data: user });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // @desc    Get new access token from refresh token
 // @route   POST /api/auth/refresh
 // @access  Public
