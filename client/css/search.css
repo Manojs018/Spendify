@@ -1,0 +1,386 @@
+/* ============================================================
+   search.css — Global Search & Advanced Filters
+   Spendify Dashboard Feature
+   ============================================================ */
+
+/* ── Search Bar Wrapper ── */
+.search-bar-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 0 8px;
+    flex-wrap: wrap;
+}
+
+.search-bar-inner {
+    flex: 1;
+    min-width: 240px;
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.search-icon {
+    position: absolute;
+    left: 14px;
+    font-size: 15px;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.6;
+}
+
+.search-bar-input {
+    width: 100%;
+    padding: 11px 40px 11px 40px;
+    background: var(--bg-tertiary, rgba(255,255,255,0.05));
+    border: 1.5px solid var(--border-color, rgba(255,255,255,0.1));
+    border-radius: 12px;
+    color: var(--text-primary, #fff);
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+}
+
+.search-bar-input::placeholder {
+    color: var(--text-tertiary, rgba(255,255,255,0.35));
+}
+
+.search-bar-input:focus {
+    border-color: var(--accent-primary, #6c63ff);
+    box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.18);
+}
+
+/* Remove native 'x' in Chrome */
+.search-bar-input::-webkit-search-cancel-button { display: none; }
+
+.search-clear-btn {
+    position: absolute;
+    right: 12px;
+    background: none;
+    border: none;
+    color: var(--text-secondary, rgba(255,255,255,0.5));
+    font-size: 14px;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 6px;
+    transition: color 0.15s, background 0.15s;
+    line-height: 1;
+}
+
+.search-clear-btn:hover {
+    color: var(--text-primary, #fff);
+    background: rgba(255,255,255,0.08);
+}
+
+/* ── Filter Toggle Button ── */
+.filter-toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    position: relative;
+    padding: 10px 18px;
+}
+
+.filter-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    background: var(--accent-primary, #6c63ff);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 50%;
+    line-height: 1;
+}
+
+/* ── Advanced Filters Panel ── */
+.advanced-filters-panel {
+    background: var(--bg-tertiary, rgba(255,255,255,0.04));
+    border: 1px solid var(--border-color, rgba(255,255,255,0.08));
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 12px;
+    animation: slideDown 0.22s ease;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.filters-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.filter-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary, rgba(255,255,255,0.55));
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.filter-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.filter-sep {
+    color: var(--text-tertiary, rgba(255,255,255,0.3));
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.filter-input-adv {
+    flex: 1;
+    min-width: 0;
+    padding: 9px 12px;
+    background: var(--bg-secondary, rgba(255,255,255,0.06));
+    border: 1.5px solid var(--border-color, rgba(255,255,255,0.1));
+    border-radius: 10px;
+    color: var(--text-primary, #fff);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.filter-input-adv:focus {
+    border-color: var(--accent-primary, #6c63ff);
+    box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.15);
+}
+
+.filter-input-adv option,
+.filter-input-adv optgroup {
+    background: var(--bg-primary, #1a1a2e);
+    color: var(--text-primary, #fff);
+}
+
+/* ── Type Filter Buttons ── */
+.filter-type-btns {
+    display: flex;
+    gap: 6px;
+}
+
+.type-filter-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border-color, rgba(255,255,255,0.12));
+    background: transparent;
+    color: var(--text-secondary, rgba(255,255,255,0.55));
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.18s;
+    text-align: center;
+}
+
+.type-filter-btn:hover {
+    background: rgba(255,255,255,0.07);
+    color: var(--text-primary, #fff);
+}
+
+.type-filter-btn.active {
+    background: rgba(108, 99, 255, 0.18);
+    border-color: var(--accent-primary, #6c63ff);
+    color: var(--accent-primary, #6c63ff);
+    font-weight: 600;
+}
+
+.type-filter-btn.income.active {
+    background: rgba(34, 197, 94, 0.15);
+    border-color: #22c55e;
+    color: #22c55e;
+}
+
+.type-filter-btn.expense.active {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+/* ── Filter Actions Row ── */
+.filters-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-color, rgba(255,255,255,0.07));
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.filter-reset-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-secondary, rgba(255,255,255,0.5));
+    padding: 7px 14px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.18s;
+    font-family: inherit;
+}
+
+.filter-reset-btn:hover {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #ef4444;
+}
+
+.btn-ghost {
+    background: transparent;
+    border: none;
+}
+
+.filter-result-count {
+    font-size: 13px;
+    color: var(--text-tertiary, rgba(255,255,255,0.4));
+    font-weight: 500;
+}
+
+/* ── Active Filter Tags ── */
+.active-filter-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 0 4px;
+}
+
+.filter-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    background: rgba(108, 99, 255, 0.14);
+    border: 1px solid rgba(108, 99, 255, 0.35);
+    border-radius: 20px;
+    font-size: 12px;
+    color: var(--accent-primary, #a89cff);
+    font-weight: 500;
+    animation: tagPop 0.18s ease;
+}
+
+@keyframes tagPop {
+    from { transform: scale(0.85); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+}
+
+.filter-tag-remove {
+    cursor: pointer;
+    opacity: 0.6;
+    font-size: 13px;
+    line-height: 1;
+    transition: opacity 0.15s;
+    background: none;
+    border: none;
+    color: inherit;
+    padding: 0;
+}
+
+.filter-tag-remove:hover { opacity: 1; }
+
+/* ── Search Highlight ── */
+.tx-highlight {
+    background: rgba(255, 210, 60, 0.3);
+    border-radius: 3px;
+    padding: 0 2px;
+    color: inherit;
+    font-weight: 600;
+}
+
+/* ── No Results State ── */
+.no-results-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    text-align: center;
+    gap: 12px;
+}
+
+.no-results-icon {
+    font-size: 48px;
+    opacity: 0.5;
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(-8px); }
+}
+
+.no-results-state h4 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary, #fff);
+    margin: 0;
+}
+
+.no-results-state p {
+    font-size: 13px;
+    color: var(--text-tertiary, rgba(255,255,255,0.4));
+    margin: 0;
+}
+
+.no-results-state .btn {
+    margin-top: 8px;
+}
+
+/* ── Pagination ── */
+.tx-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 16px 0 4px;
+}
+
+.tx-page-info {
+    font-size: 13px;
+    color: var(--text-secondary, rgba(255,255,255,0.5));
+    min-width: 120px;
+    text-align: center;
+}
+
+.btn-sm {
+    padding: 7px 16px;
+    font-size: 13px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+    .filters-grid {
+        grid-template-columns: 1fr;
+    }
+    .search-bar-wrapper {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .filter-toggle-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
