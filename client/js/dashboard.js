@@ -14,6 +14,14 @@ let cards = [];
 let editingTransactionId = null;
 let isPageTransitioning = false;
 
+// Analytics data cache
+let allExpenseData = [];
+let allIncomeData = [];
+let overviewChartInstance = null;
+let categoryChartInstance = null;
+let monthlyChartInstance = null;
+let trendChartInstance = null;
+
 // DOM Elements
 const sidebar = document.getElementById('sidebar');
 const menuToggle = document.getElementById('menuToggle');
@@ -28,6 +36,7 @@ const cardsContent = document.getElementById('cardsContent');
 const analyticsContent = document.getElementById('analyticsContent');
 const transferContent = document.getElementById('transferContent');
 const recurringContent = document.getElementById('recurringContent');
+const budgetContent = document.getElementById('budgetContent');
 
 // Modals
 const transactionModal = document.getElementById('transactionModal');
@@ -51,10 +60,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function loadUserData() {
     try {
+        // Also ping the backend to get latest user preferences including baseCurrency
+        const response = await apiRequest(`${API_BASE_URL}/auth/me`);
+        if (response.success && response.data) {
+            setUser(response.data); // updates localStorage
+        }
+        
         const user = getUser();
         if (user) {
             document.getElementById('userName').textContent = user.name;
             document.getElementById('userEmail').textContent = user.email;
+            
+            const currencySelect = document.getElementById('userBaseCurrency');
+            if (currencySelect) {
+                currencySelect.value = user.baseCurrency || 'USD';
+            }
+            
+            const txCurrency = document.getElementById('transactionCurrency');
+            if (txCurrency) {
+                txCurrency.value = user.baseCurrency || 'USD';
+            }
         }
     } catch (error) {
         console.error('Error loading user data:', error);
@@ -135,7 +160,7 @@ function displayRecentTransactions(transactionsData) {
       </div>
       <div style="text-align: right;">
         <p class="transaction-amount ${transaction.type === 'income' ? 'text-success' : 'text-danger'}">
-          ${transaction.type === 'income' ? '+' : '-'}${formatCurrency(transaction.amount)}
+          ${renderAmount(transaction.amount, transaction.baseAmount, transaction.currency, transaction.type, true)}
         </p>
         <p class="transaction-date">${formatDate(transaction.date)}</p>
       </div>
@@ -219,6 +244,34 @@ function displayCards(cardsData) {
 // ===================================
 
 function setupEventListeners() {
+    // Global Base Currency Setting change
+    const baseCurrencySelect = document.getElementById('userBaseCurrency');
+    if (baseCurrencySelect) {
+        baseCurrencySelect.addEventListener('change', async (e) => {
+            const newCurrency = e.target.value;
+            try {
+                const res = await apiRequest(`${API_BASE_URL}/auth/me/currency`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ baseCurrency: newCurrency })
+                });
+                if (res.success) {
+                    const user = getUser() || {};
+                    user.baseCurrency = newCurrency;
+                    setUser(user);
+                    showToast(`Base Currency updated to ${newCurrency}`, 'success');
+                    
+                    // Reload all UI elements in the new currency softly:
+                    await loadDashboardData();
+                    if (currentPage === 'transactions') loadAllTransactions();
+                    if (currentPage === 'analytics') loadAnalytics();
+                    if (currentPage === 'budget') typeof loadBudgetPage === 'function' ? loadBudgetPage() : refreshBudgetAfterTransaction();
+                }
+            } catch(e) {
+                showToast('Failed to update base currency!', 'error');
+            }
+        });
+    }
+
     // Mobile menu toggle
     menuToggle.addEventListener('click', () => {
         sidebar.classList.toggle('show');
@@ -273,11 +326,180 @@ function setupEventListeners() {
     // Export Data
     document.getElementById('exportDataBtn')?.addEventListener('click', exportTransactions);
 
-    // Filters
-    document.getElementById('filterType')?.addEventListener('change', loadAllTransactions);
-    document.getElementById('filterCategory')?.addEventListener('change', loadAllTransactions);
-    document.getElementById('filterMonth')?.addEventListener('change', loadAllTransactions);
-    document.getElementById('searchTransactions')?.addEventListener('input', debounce(loadAllTransactions, 300));
+    // ===================================
+    // ADVANCED FILTERS & SEARCH
+    // ===================================
+
+    const filterElements = {
+        search: document.getElementById('globalSearchInput'),
+        category: document.getElementById('filterCategory'),
+        month: document.getElementById('filterMonth'),
+        startDate: document.getElementById('filterStartDate'),
+        endDate: document.getElementById('filterEndDate'),
+        minAmount: document.getElementById('filterMinAmount'),
+        maxAmount: document.getElementById('filterMaxAmount'),
+        sort: document.getElementById('filterSort')
+    };
+
+    // Toggle advanced filters panel
+    const filterToggleBtn = document.getElementById('filterToggleBtn');
+    const advancedFiltersPanel = document.getElementById('advancedFiltersPanel');
+    if (filterToggleBtn) {
+        filterToggleBtn.addEventListener('click', () => {
+            const isHidden = advancedFiltersPanel.classList.contains('hidden');
+            advancedFiltersPanel.classList.toggle('hidden');
+            filterToggleBtn.setAttribute('aria-expanded', !isHidden);
+        });
+    }
+
+    // Bind basic changes
+    ['category', 'month', 'startDate', 'endDate', 'minAmount', 'maxAmount', 'sort'].forEach(key => {
+        if (filterElements[key]) {
+            filterElements[key].addEventListener('change', () => {
+                currentTxPage = 1; // reset page on filter change
+                loadAllTransactions();
+            });
+        }
+    });
+
+    // Amount range validation (min vs max)
+    if (filterElements.minAmount && filterElements.maxAmount) {
+        filterElements.minAmount.addEventListener('blur', () => {
+            const min = parseFloat(filterElements.minAmount.value);
+            const max = parseFloat(filterElements.maxAmount.value);
+            if (!isNaN(min) && !isNaN(max) && min > max) {
+                filterElements.minAmount.value = max;
+            }
+            loadAllTransactions();
+        });
+        filterElements.maxAmount.addEventListener('blur', () => {
+            const min = parseFloat(filterElements.minAmount.value);
+            const max = parseFloat(filterElements.maxAmount.value);
+            if (!isNaN(min) && !isNaN(max) && max < min) {
+                filterElements.maxAmount.value = min;
+            }
+            loadAllTransactions();
+        });
+    }
+
+    // Debounced Search Input
+    const searchClearBtn = document.getElementById('searchClearBtn');
+    
+    // Properly initialize debounce just once outside the event listener
+    const performDebouncedSearch = debounce(() => {
+        currentTxPage = 1;
+        loadAllTransactions();
+    }, 300);
+
+    if (filterElements.search) {
+        filterElements.search.addEventListener('input', (e) => {
+            // Show/hide clear button
+            if (searchClearBtn) {
+                searchClearBtn.classList.toggle('hidden', !e.target.value);
+            }
+            
+            // Auto-switch to transactions page if searching from another page
+            if (e.target.value && document.getElementById('main-content')?.querySelector('.content:not(.hidden)')?.id !== 'transactionsContent') {
+                navigateToPage('transactions');
+            }
+
+            // Trigger true debounced search
+            performDebouncedSearch();
+        });
+    }
+
+    // Clear Search Button
+    if (searchClearBtn) {
+        searchClearBtn.addEventListener('click', () => {
+            filterElements.search.value = '';
+            searchClearBtn.classList.add('hidden');
+            currentTxPage = 1;
+            loadAllTransactions();
+        });
+    }
+
+    // Type Filter Buttons (Income, Expense, All)
+    const typeBtns = document.querySelectorAll('.type-filter-btn');
+    typeBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            typeBtns.forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            
+            // Note: we'll store active type on panel dataset for easy access
+            document.getElementById('advancedFiltersPanel').dataset.activeType = e.target.dataset.type;
+            
+            currentTxPage = 1;
+            loadAllTransactions();
+        });
+    });
+
+    // Clear All Filters
+    const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+    if (clearFiltersBtn) {
+        clearFiltersBtn.addEventListener('click', () => {
+            // Reset all inputs
+            Object.values(filterElements).forEach(el => {
+                if (el) el.value = '';
+            });
+            if (filterElements.sort) filterElements.sort.value = '-date';
+            
+            // Reset search clear button
+            if (searchClearBtn) searchClearBtn.classList.add('hidden');
+            
+            // Reset type buttons to "All"
+            typeBtns.forEach(b => b.classList.remove('active'));
+            const btnAll = document.getElementById('typeFilterAll');
+            if (btnAll) btnAll.classList.add('active');
+            document.getElementById('advancedFiltersPanel').dataset.activeType = '';
+            
+            currentTxPage = 1;
+            loadAllTransactions();
+        });
+    }
+
+    // Pagination
+    document.getElementById('txPrevPage')?.addEventListener('click', () => {
+        if (currentTxPage > 1) {
+            currentTxPage--;
+            loadAllTransactions();
+        }
+    });
+
+    document.getElementById('txNextPage')?.addEventListener('click', () => {
+        if (currentTxPage < totalTxPages) {
+            currentTxPage++;
+            loadAllTransactions();
+        }
+    });
+
+    // Delegated event for remove filter tags 
+    const tagsContainer = document.getElementById('activeFilterTags');
+    if (tagsContainer) {
+        tagsContainer.addEventListener('click', (e) => {
+            if (e.target.closest('.filter-tag-remove')) {
+                const tag = e.target.closest('.filter-tag');
+                const fieldId = tag.dataset.field;
+                
+                if (fieldId === 'type') {
+                    // Reset type to all
+                    typeBtns.forEach(b => b.classList.remove('active'));
+                    document.getElementById('typeFilterAll')?.classList.add('active');
+                    document.getElementById('advancedFiltersPanel').dataset.activeType = '';
+                } else if (fieldId) {
+                    const el = document.getElementById(fieldId);
+                    if (el) {
+                        el.value = '';
+                        // handle blur validations
+                        el.dispatchEvent(new Event('change'));
+                        return; // return to avoid double loadAllTransactions call
+                    }
+                }
+                
+                currentTxPage = 1;
+                loadAllTransactions();
+            }
+        });
+    }
 
     // Keyboard Navigation for Modals
     document.addEventListener('keydown', (e) => {
@@ -360,6 +582,11 @@ async function navigateToPage(page) {
             showOnlySection(recurringContent);
             loadRecurringTransactions();
             break;
+        case 'budget':
+            pageTitle.textContent = 'Budget Limits & Alerts';
+            showOnlySection(budgetContent);
+            loadBudgetPage();
+            break;
     }
 
     // Close mobile menu
@@ -381,13 +608,15 @@ function getSectionByPage(page) {
             return transferContent;
         case 'recurring':
             return recurringContent;
+        case 'budget':
+            return budgetContent;
         default:
             return null;
     }
 }
 
 function showOnlySection(activeSection) {
-    [dashboardContent, transactionsContent, cardsContent, analyticsContent, transferContent, recurringContent]
+    [dashboardContent, transactionsContent, cardsContent, analyticsContent, transferContent, recurringContent, budgetContent]
         .forEach(section => {
             if (section === activeSection) {
                 section.classList.remove('hidden');
@@ -436,6 +665,7 @@ function openTransactionModal(type = 'expense', transaction = null) {
         document.getElementById('transactionId').value = transaction._id;
         document.getElementById('transactionType').value = transaction.type;
         document.getElementById('transactionAmount').value = transaction.amount;
+        document.getElementById('transactionCurrency').value = transaction.currency || (getUser() || {}).baseCurrency || 'USD';
         document.getElementById('transactionCategory').value = transaction.category;
         document.getElementById('transactionDescription').value = transaction.description || '';
         document.getElementById('transactionDate').value = formatDateForInput(transaction.date);
@@ -443,6 +673,7 @@ function openTransactionModal(type = 'expense', transaction = null) {
         modalTitle.textContent = 'Add Transaction';
         form.reset();
         document.getElementById('transactionType').value = type;
+        document.getElementById('transactionCurrency').value = (getUser() || {}).baseCurrency || 'USD';
         document.getElementById('transactionDate').value = formatDateForInput(new Date());
     }
 
@@ -497,6 +728,7 @@ async function handleTransactionSubmit(e) {
     const formData = {
         type: document.getElementById('transactionType').value,
         amount: parseFloat(document.getElementById('transactionAmount').value),
+        currency: document.getElementById('transactionCurrency').value,
         category: document.getElementById('transactionCategory').value,
         description: document.getElementById('transactionDescription').value,
         date: document.getElementById('transactionDate').value,
@@ -529,9 +761,12 @@ async function handleTransactionSubmit(e) {
             if (currentPage === 'analytics') {
                 loadAnalytics();
             }
-            if (formData.isRecurring) {
-                // If on recurring page, reload it
-                if (currentPage === 'recurring') loadRecurringTransactions();
+            if (currentPage === 'budget') {
+                loadBudgetPage();
+            }
+            // Real-time budget tracking alerts
+            if (typeof refreshBudgetAfterTransaction === 'function') {
+                refreshBudgetAfterTransaction();
             }
         }
     } catch (error) {
@@ -636,34 +871,140 @@ async function handleCardSubmit(e) {
 // LOAD ALL TRANSACTIONS
 // ===================================
 
+// Global pagination state
+let currentTxPage = 1;
+let totalTxPages = 1;
+
+// Collect filters function
+function getActiveFilters() {
+    return {
+        type: document.getElementById('advancedFiltersPanel')?.dataset.activeType || '',
+        category: document.getElementById('filterCategory')?.value || '',
+        month: document.getElementById('filterMonth')?.value || '',
+        startDate: document.getElementById('filterStartDate')?.value || '',
+        endDate: document.getElementById('filterEndDate')?.value || '',
+        minAmount: document.getElementById('filterMinAmount')?.value || '',
+        maxAmount: document.getElementById('filterMaxAmount')?.value || '',
+        sort: document.getElementById('filterSort')?.value || '-date',
+        search: document.getElementById('globalSearchInput')?.value || ''
+    };
+}
+
+// Visual updates for active filter state
+function updateFilterUI(filters, count = 0) {
+    const tagsContainer = document.getElementById('activeFilterTags');
+    const badge = document.getElementById('filterBadge');
+    const resultCount = document.getElementById('filterResultCount');
+    
+    if (resultCount) {
+        resultCount.textContent = `${count} transaction${count !== 1 ? 's' : ''} found`;
+    }
+
+    if (!tagsContainer || !badge) return;
+
+    let activeCount = 0;
+    let tagsHTML = '';
+
+    // Check mapping
+    const mappings = [
+        { key: 'type', label: val => `Type: ${val.charAt(0).toUpperCase() + val.slice(1)}` },
+        { key: 'category', id: 'filterCategory', label: val => `Category: ${val}` },
+        { key: 'month', id: 'filterMonth', label: val => `Month: ${val}` },
+        { key: 'startDate', id: 'filterStartDate', label: val => `After: ${val}` },
+        { key: 'endDate', id: 'filterEndDate', label: val => `Before: ${val}` },
+        { key: 'minAmount', id: 'filterMinAmount', label: val => `Min: $${val}` },
+        { key: 'maxAmount', id: 'filterMaxAmount', label: val => `Max: $${val}` }
+    ];
+
+    mappings.forEach(m => {
+        if (filters[m.key]) {
+            activeCount++;
+            tagsHTML += `
+                <span class="filter-tag" data-field="${m.id || 'type'}">
+                    ${m.label(filters[m.key])}
+                    <button class="filter-tag-remove" aria-label="Remove filter">✕</button>
+                </span>
+            `;
+        }
+    });
+
+    // Only sort counts as an active filter visually if it's not the default
+    if (filters.sort && filters.sort !== '-date') {
+        activeCount++;
+    }
+
+    if (activeCount > 0) {
+        tagsContainer.innerHTML = tagsHTML;
+        tagsContainer.classList.remove('hidden');
+        badge.textContent = activeCount;
+        badge.classList.remove('hidden');
+    } else {
+        tagsContainer.innerHTML = '';
+        tagsContainer.classList.add('hidden');
+        badge.classList.add('hidden');
+    }
+}
+
+
 async function loadAllTransactions() {
     const container = document.getElementById('allTransactions');
     container.innerHTML = getSkeletonHTML('list-item', 8);
 
     try {
-        const type = document.getElementById('filterType')?.value || '';
-        const category = document.getElementById('filterCategory')?.value || '';
-        const month = document.getElementById('filterMonth')?.value || '';
-        const search = document.getElementById('searchTransactions')?.value || '';
-
-        let url = `${API_ENDPOINTS.transactions}?`;
-        if (type) url += `type=${type}&`;
-        if (category) url += `category=${category}&`;
-        if (month) {
-            const [year, monthNum] = month.split('-');
+        const filters = getActiveFilters();
+        
+        // Build URL
+        let url = `${API_ENDPOINTS.transactions}?page=${currentTxPage}&limit=10&`;
+        if (filters.type) url += `type=${filters.type}&`;
+        if (filters.category) url += `category=${encodeURIComponent(filters.category)}&`;
+        if (filters.startDate) url += `startDate=${filters.startDate}&`;
+        if (filters.endDate) url += `endDate=${filters.endDate}&`;
+        if (filters.minAmount) url += `minAmount=${filters.minAmount}&`;
+        if (filters.maxAmount) url += `maxAmount=${filters.maxAmount}&`;
+        if (filters.sort) url += `sort=${filters.sort}&`;
+        if (filters.search) url += `search=${encodeURIComponent(filters.search)}&`;
+        
+        // Process month format (YYYY-MM to year=YYYY&month=MM) only if daterange isn't active
+        if (filters.month && !filters.startDate && !filters.endDate) {
+            const [year, monthNum] = filters.month.split('-');
             url += `year=${year}&month=${monthNum}&`;
         }
-        if (search) url += `search=${search}&`;
 
         const response = await apiRequest(url);
 
         if (response.success) {
             transactions = Array.isArray(response.data) ? response.data : [];
+            totalTxPages = response.totalPages || 1;
+            currentTxPage = response.currentPage || 1;
+            
+            updateFilterUI(filters, response.total);
             displayAllTransactions(transactions);
+            updatePaginationUI();
         }
     } catch (error) {
         container.innerHTML = '<div class="empty-state"><p>Failed to load transactions</p></div>';
     }
+}
+
+function updatePaginationUI() {
+    const pag = document.getElementById('txPagination');
+    const info = document.getElementById('txPageInfo');
+    const btnPrev = document.getElementById('txPrevPage');
+    const btnNext = document.getElementById('txNextPage');
+    
+    if (!pag || !info || !btnPrev || !btnNext) return;
+    
+    if (totalTxPages <= 1) {
+        // Hide pagination if only 1 page
+        pag.classList.add('hidden');
+        return;
+    }
+    
+    pag.classList.remove('hidden');
+    info.textContent = `Page ${currentTxPage} of ${totalTxPages}`;
+    
+    btnPrev.disabled = currentTxPage <= 1;
+    btnNext.disabled = currentTxPage >= totalTxPages;
 }
 
 function displayAllTransactions(transactionsData) {
@@ -679,34 +1020,53 @@ function displayAllTransactions(transactionsData) {
         return;
     }
 
+    // ── Search Highlight Helper ── 
+    const searchTerm = document.getElementById('globalSearchInput')?.value.trim() || '';
+    
+    // Simple regex escaping helper
+    const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = searchTerm ? new RegExp(`(${escapeRegex(searchTerm)})`, 'gi') : null;
+    
+    const highlight = (text) => {
+        if (!text) return '';
+        if (!re) return text;
+        return String(text).replace(re, '<mark class="tx-highlight">$1</mark>');
+    };
+
     container.innerHTML = `
     <div class="transactions-list">
-      ${transactionsData.map(transaction => `
-        <div class="transaction-item">
-          <div class="transaction-icon ${transaction.type}">
-            ${transaction.type === 'income' ? '📈' : '📉'}
+      ${transactionsData.map(transaction => {
+          const typeIcon = transaction.type === 'income' ? '📈' : '📉';
+          const typeClass = transaction.type === 'income' ? 'text-success' : 'text-danger';
+          const sign = transaction.type === 'income' ? '+' : '-';
+          
+          return `
+          <div class="transaction-item">
+            <div class="transaction-icon ${transaction.type}">
+              ${typeIcon}
+            </div>
+            <div class="transaction-details">
+              <p class="transaction-category">${highlight(transaction.category)}</p>
+              <p class="transaction-description">${highlight(transaction.description || 'No description')}</p>
+            </div>
+            <div style="text-align: right;">
+              <p class="transaction-amount ${typeClass}">
+                ${renderAmount(transaction.amount, transaction.baseAmount, transaction.currency, transaction.type, true)}
+              </p>
+              <p class="transaction-date">${formatDate(transaction.date)}</p>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-sm btn-secondary" onclick='editTransaction(${JSON.stringify(transaction).replace(/'/g, "&apos;")})'>
+                <span>Edit</span>
+              </button>
+              <button class="btn btn-sm btn-danger" onclick="deleteTransaction(event, '${transaction._id}')">
+                <span>Delete</span>
+                <span class="btn-loader" style="display: none;"><span class="spinner"></span></span>
+              </button>
+            </div>
           </div>
-          <div class="transaction-details">
-            <p class="transaction-category">${transaction.category}</p>
-            <p class="transaction-description">${transaction.description || 'No description'}</p>
-          </div>
-          <div style="text-align: right;">
-            <p class="transaction-amount ${transaction.type === 'income' ? 'text-success' : 'text-danger'}">
-              ${transaction.type === 'income' ? '+' : '-'}${formatCurrency(transaction.amount)}
-            </p>
-            <p class="transaction-date">${formatDate(transaction.date)}</p>
-          </div>
-          <div style="display: flex; gap: 8px;">
-            <button class="btn btn-sm btn-secondary" onclick='editTransaction(${JSON.stringify(transaction)})'>
-              <span>Edit</span>
-            </button>
-            <button class="btn btn-sm btn-danger" onclick="deleteTransaction(event, '${transaction._id}')">
-              <span>Delete</span>
-              <span class="btn-loader" style="display: none;"><span class="spinner"></span></span>
-            </button>
-          </div>
-        </div>
-      `).join('')}
+        `;
+      }).join('')}
     </div>
   `;
 }
@@ -724,19 +1084,22 @@ async function exportTransactions() {
     btn.disabled = true;
 
     try {
-        const type = document.getElementById('filterType')?.value || '';
-        const category = document.getElementById('filterCategory')?.value || '';
-        const month = document.getElementById('filterMonth')?.value || '';
-        const search = document.getElementById('searchTransactions')?.value || '';
+        const filters = getActiveFilters();
 
         let url = `${API_ENDPOINTS.transactionsExport}?`;
-        if (type) url += `type=${type}&`;
-        if (category) url += `category=${category}&`;
-        if (month) {
-            const [year, monthNum] = month.split('-');
+        if (filters.type) url += `type=${filters.type}&`;
+        if (filters.category) url += `category=${encodeURIComponent(filters.category)}&`;
+        if (filters.startDate) url += `startDate=${filters.startDate}&`;
+        if (filters.endDate) url += `endDate=${filters.endDate}&`;
+        if (filters.minAmount) url += `minAmount=${filters.minAmount}&`;
+        if (filters.maxAmount) url += `maxAmount=${filters.maxAmount}&`;
+        if (filters.sort) url += `sort=${filters.sort}&`;
+        if (filters.search) url += `search=${encodeURIComponent(filters.search)}&`;
+
+        if (filters.month && !filters.startDate && !filters.endDate) {
+            const [year, monthNum] = filters.month.split('-');
             url += `year=${year}&month=${monthNum}&`;
         }
-        if (search) url += `search=${search}&`;
 
         const token = localStorage.getItem(STORAGE_KEYS.token);
         const requestHeaders = {
@@ -796,6 +1159,16 @@ async function deleteTransaction(e, id) {
             loadDashboardData();
             if (currentPage === 'transactions') {
                 loadAllTransactions();
+            }
+            if (currentPage === 'analytics') {
+                loadAnalytics();
+            }
+            if (currentPage === 'budget') {
+                loadBudgetPage();
+            }
+            // Real-time budget tracking alerts
+            if (typeof refreshBudgetAfterTransaction === 'function') {
+                refreshBudgetAfterTransaction();
             }
         }
     } catch (error) {
@@ -915,14 +1288,9 @@ function setupInteractiveMotion() {
 // ANALYTICS
 // ===================================
 
-let categoryChartInstance = null;
-let monthlyChartInstance = null;
-let trendChartInstance = null;
-let overviewChartInstance = null;
-
 // All raw expense + income data cached for client-side filtering
-let allExpenseData = [];
-let allIncomeData = [];
+// (Already declared at the top)
+
 
 /**
  * Fetches ALL transactions of a given type by paginating through results.
@@ -968,15 +1336,15 @@ async function loadAnalytics() {
             fetchAllTransactions('income')
         ]);
 
-        allExpenseData = allExpenses.map(t => ({
-            ...t,
-            dateObj: new Date(t.date)
-        })).sort((a, b) => a.dateObj - b.dateObj);
-
-        allIncomeData = allIncomes.map(t => ({
-            ...t,
-            dateObj: new Date(t.date)
-        })).sort((a, b) => a.dateObj - b.dateObj);
+        allExpenseData = allExpenses
+            .map(t => ({ ...t, dateObj: new Date(t.date) }))
+            .filter(t => !isNaN(t.dateObj.getTime()))
+            .sort((a, b) => a.dateObj - b.dateObj);
+            
+        allIncomeData = allIncomes
+            .map(t => ({ ...t, dateObj: new Date(t.date) }))
+            .filter(t => !isNaN(t.dateObj.getTime()))
+            .sort((a, b) => a.dateObj - b.dateObj);
 
         populateAnalyticsCategoryFilter();
 
@@ -1109,7 +1477,10 @@ const CHART_COLORS = [
 function drawOverviewChart(incomes, expenses, range) {
     const ctx = document.getElementById('overviewChart');
     const emptyEl = document.getElementById('overviewChartEmpty');
-    if (!ctx) return;
+    if (!ctx || typeof Chart === 'undefined') {
+        if (typeof Chart === 'undefined') console.error('Chart.js not loaded!');
+        return;
+    }
 
     // Build month-keyed maps
     const incomeMap = {};
@@ -1233,7 +1604,7 @@ function drawCategoryChart(catMap) {
     const ctx = document.getElementById('categoryChart');
     const emptyEl = document.getElementById('categoryChartEmpty');
     const badgesEl = document.getElementById('categoryBadges');
-    if (!ctx) return;
+    if (!ctx || typeof Chart === 'undefined') return;
 
     const keys = Object.keys(catMap);
 
@@ -1301,7 +1672,7 @@ function drawCategoryChart(catMap) {
 function drawMonthlyChart(data) {
     const ctx = document.getElementById('monthlyChart');
     const emptyEl = document.getElementById('monthlyChartEmpty');
-    if (!ctx) return;
+    if (!ctx || typeof Chart === 'undefined') return;
 
     if (data.length === 0) {
         emptyEl.classList.remove('hidden');
@@ -1378,7 +1749,7 @@ function drawTrendChart(data, range) {
     const ctx = document.getElementById('trendChart');
     const emptyEl = document.getElementById('trendChartEmpty');
     const badge = document.getElementById('trendTotalBadge');
-    if (!ctx) return;
+    if (!ctx || typeof Chart === 'undefined') return;
 
     if (data.length === 0) {
         emptyEl.classList.remove('hidden');
@@ -1611,7 +1982,7 @@ function displayTransferHistory(transfersData) {
           </div>
           <div style="text-align: right;">
             <p class="transaction-amount ${transfer.type === 'income' ? 'text-success' : 'text-danger'}">
-              ${transfer.type === 'income' ? '+' : '-'}${formatCurrency(transfer.amount)}
+              ${renderAmount(transfer.amount, transfer.baseAmount, transfer.currency, transfer.type, true)}
             </p>
             <p class="transaction-date">${formatDate(transfer.date)}</p>
           </div>
@@ -1665,9 +2036,9 @@ function displayRecurringTransactions(data) {
             <p class="transaction-date" style="font-size: 11px;">Next: ${formatDate(item.nextProcessingDate)}</p>
           </div>
           <div style="text-align: right; display: flex; align-items: center; gap: 15px;">
-            <p class="transaction-amount ${item.type === 'income' ? 'text-success' : 'text-danger'}">
-              ${item.type === 'income' ? '+' : '-'}${formatCurrency(item.amount)}
-            </p>
+            <div class="transaction-amount ${item.type === 'income' ? 'text-success' : 'text-danger'}">
+              ${renderAmount(item.amount, item.baseAmount, item.currency, item.type, true)}
+            </div>
             <button class="btn btn-sm btn-danger" onclick="deleteRecurring(event, '${item._id}')">
               <span>Cancel</span>
               <span class="btn-loader" style="display: none;"><span class="spinner"></span></span>
