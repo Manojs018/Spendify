@@ -12,6 +12,18 @@ const transactionSchema = new mongoose.Schema(
             required: [true, 'Please provide an amount'],
             min: [0.01, 'Amount must be greater than 0'],
         },
+        currency: {
+            type: String,
+            default: 'USD',
+            trim: true,
+            uppercase: true,
+            maxlength: 3,
+        },
+        baseAmount: {
+            type: Number,
+            required: [true, 'Base amount is required'],
+            default: function() { return this.amount; }
+        },
         type: {
             type: String,
             required: [true, 'Please specify transaction type'],
