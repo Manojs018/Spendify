@@ -1,31 +1,13 @@
 {
   "version": 2,
-  "name": "spendify",
-  "builds": [
+  "rewrites": [
     {
-      "src": "server/server.js",
-      "use": "@vercel/node"
+      "source": "/api/(.*)",
+      "destination": "/api/index.js"
     },
     {
-      "src": "client/**",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "server/server.js",
-      "check": true
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/client/$1",
-      "check": true
-    },
-    {
-      "src": "/(.*)",
-      "status": 404,
-      "dest": "/client/index.html"
+      "source": "/((?!api/).*)",
+      "destination": "/client/$1"
     }
   ]
 }
