@@ -54,6 +54,13 @@ const userSchema = new mongoose.Schema(
             default: 0,
             min: [0, 'Insufficient funds: balance cannot go negative'],
         },
+        baseCurrency: {
+            type: String,
+            default: 'USD',
+            trim: true,
+            uppercase: true,
+            maxlength: 3,
+        },
 
         // ── Account Lockout (brute-force protection) ──────────────
         failedLoginAttempts: {
