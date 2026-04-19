@@ -54,6 +54,9 @@ const API_ENDPOINTS = {
     // Recurring Transactions
     recurringTransactions: `${API_BASE_URL}/recurring-transactions`,
     recurringTransaction: (id) => `${API_BASE_URL}/recurring-transactions/${id}`,
+
+    // Budgets
+    budgets: `${API_BASE_URL}/budgets`,
 };
 
 // Local Storage Keys
