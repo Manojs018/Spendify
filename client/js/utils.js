@@ -81,11 +81,40 @@ function showToast(message, type = 'info') {
 }
 
 // Format currency
-function formatCurrency(amount) {
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-    }).format(amount);
+function formatCurrency(amount, currencyCode) {
+    let code = currencyCode;
+    if (!code) {
+        const user = getUser() || {};
+        code = user.baseCurrency || 'USD';
+    }
+    
+    // Normalize to handle potential case issues
+    code = code.toUpperCase();
+    
+    // Fallback catching just in case user object is malformed
+    try {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: code,
+        }).format(amount);
+    } catch(e) {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+        }).format(amount);
+    }
+}
+
+
+// Render Amount block supporting multi-currency Sub-Display
+function renderAmount(amount, baseAmount, currency, type, showSign = true) {
+    const sign = showSign ? (type === 'income' ? '+' : '-') : '';
+    const userCurrency = (getUser() || {}).baseCurrency || 'USD';
+    const mainHtml = `${sign}${formatCurrency(baseAmount || amount, userCurrency)}`;
+    const subHtml = (currency && currency.toUpperCase() !== userCurrency.toUpperCase()) 
+        ? `<span style="font-size: 11px; display:block; color:var(--text-tertiary);">${sign}${formatCurrency(amount, currency)}</span>` 
+        : '';
+    return `${mainHtml}\n${subHtml}`;
 }
 
 // Format date
