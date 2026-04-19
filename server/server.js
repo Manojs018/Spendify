@@ -56,9 +56,17 @@ app.use(
         origin: function (origin, callback) {
             // Allow requests with no origin (like mobile apps or curl)
             if (!origin) return callback(null, true);
-            if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+
+            // Check if origin is in our allowed list
+            const isAllowed = allowedOrigins.some(ao => ao === origin || origin.startsWith(ao));
+            
+            // Also allow any vercel.app subdomain in production/Vercel environments
+            const isVercel = origin.endsWith('.vercel.app') || origin.includes('vercel.app');
+
+            if (isAllowed || isVercel || process.env.NODE_ENV === 'development') {
                 callback(null, true);
             } else {
+                console.warn(`CORS blocked request from origin: ${origin}`);
                 callback(new Error('Not allowed by CORS'));
             }
         },
