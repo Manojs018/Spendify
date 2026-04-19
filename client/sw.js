@@ -1,22 +1,22 @@
-const CACHE_NAME = 'spendify-v2';
+const CACHE_NAME = 'spendify-v4';
 const OFFLINE_URL = 'offline.html';
 
 const ASSETS_TO_CACHE = [
-    './',
-    './index.html',
-    './dashboard.html',
     './offline.html',
     './css/variables.css',
     './css/global.css',
     './css/auth.css',
     './css/dashboard.css',
+    './css/budget.css',
     './js/config.js',
     './js/utils.js',
     './js/auth.js',
     './js/dashboard.js',
+    './js/budget.js',
+    './js/chart.min.js',
 ];
 
-// Install Event - Precache static assets
+// Install Event - Precache static assets (NOT HTML pages - they use Network First)
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
@@ -27,7 +27,7 @@ self.addEventListener('install', (event) => {
     self.skipWaiting();
 });
 
-// Activate Event - Clean up old caches
+// Activate Event - Clean up ALL old caches
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((cacheNames) => {
@@ -44,19 +44,20 @@ self.addEventListener('activate', (event) => {
     self.clients.claim();
 });
 
-// Fetch Event - Network first with cache fallback
+// Fetch Event
 self.addEventListener('fetch', (event) => {
-    // Skip cross-origin requests, except for fonts
-    if (!event.request.url.startsWith(self.location.origin) &&
-        !event.request.url.includes('fonts.googleapis.com') &&
-        !event.request.url.includes('fonts.gstatic.com')) return;
+    const url = event.request.url;
 
-    // For API requests, use Network First
-    if (event.request.url.includes('/api/')) {
+    // Skip cross-origin requests (except fonts)
+    if (!url.startsWith(self.location.origin) &&
+        !url.includes('fonts.googleapis.com') &&
+        !url.includes('fonts.gstatic.com')) return;
+
+    // ── API requests: Network First, fallback to cached or offline JSON ──
+    if (url.includes('/api/')) {
         event.respondWith(
             fetch(event.request)
                 .then((response) => {
-                    // Cache successful GET responses
                     if (response.ok && event.request.method === 'GET') {
                         const responseClone = response.clone();
                         caches.open(CACHE_NAME).then((cache) => {
@@ -68,7 +69,6 @@ self.addEventListener('fetch', (event) => {
                 .catch(() => {
                     return caches.match(event.request).then((cachedResponse) => {
                         if (cachedResponse) return cachedResponse;
-                        // Return failure message if offline and not in cache
                         return new Response(JSON.stringify({
                             success: false,
                             message: 'You are offline. This action will be synced when you return online.'
@@ -81,13 +81,49 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // For navigation requests and static assets, use Cache First with Network Fallback
+    // ── HTML navigation requests: ALWAYS Network First ──
+    // This ensures updated HTML pages are always loaded fresh from server
+    if (event.request.mode === 'navigate' ||
+        url.endsWith('.html') ||
+        url.endsWith('/') ||
+        (!url.includes('.') && !url.includes('/api/'))) {
+        event.respondWith(
+            fetch(event.request)
+                .then((response) => {
+                    // Update cache with fresh version
+                    if (response.ok) {
+                        const responseClone = response.clone();
+                        caches.open(CACHE_NAME).then((cache) => {
+                            cache.put(event.request, responseClone);
+                        });
+                    }
+                    return response;
+                })
+                .catch(() => {
+                    // Offline fallback: try cache, then offline page
+                    return caches.match(event.request).then((cachedResponse) => {
+                        if (cachedResponse) return cachedResponse;
+                        return caches.match(OFFLINE_URL);
+                    });
+                })
+        );
+        return;
+    }
+
+    // ── Static assets (CSS, JS, images): Cache First with Network Fallback ──
     event.respondWith(
         caches.match(event.request).then((cachedResponse) => {
             if (cachedResponse) return cachedResponse;
 
-            return fetch(event.request).catch(() => {
-                // If navigation fails (user is offline and page not in cache), show offline page
+            return fetch(event.request).then((response) => {
+                if (response.ok) {
+                    const responseClone = response.clone();
+                    caches.open(CACHE_NAME).then((cache) => {
+                        cache.put(event.request, responseClone);
+                    });
+                }
+                return response;
+            }).catch(() => {
                 if (event.request.mode === 'navigate') {
                     return caches.match(OFFLINE_URL);
                 }
@@ -96,9 +132,7 @@ self.addEventListener('fetch', (event) => {
     );
 });
 
-// Background Sync - Re-trigger sync when back online
+// Background Sync
 self.addEventListener('sync', (event) => {
     console.log('SW: Background Sync triggered', event.tag);
-    // Re-sync is actually handled in the client's 'online' listener 
-    // but we keep this for PWA standards support
 });
