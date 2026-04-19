@@ -1,3 +1,4 @@
+import './instrument.js';
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
@@ -27,9 +28,6 @@ import budgetRoutes from './routes/budgetRoutes.js';
 
 // Load env vars
 dotenv.config();
-
-// Connect to database
-connectDB();
 
 const app = express();
 
@@ -162,6 +160,9 @@ let server;
 // Start server
 const startServer = async () => {
     try {
+        // Connect to Database first
+        await connectDB();
+
         // Only initialize Redis if connection string exists
         if (process.env.REDIS_URL || process.env.REDIS_HOST) {
             await initRedis();
