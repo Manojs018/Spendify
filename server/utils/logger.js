@@ -13,34 +13,39 @@ const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: logFormat,
   transports: [
-    // Error logs with rotation
-    new DailyRotateFile({
-      filename: 'logs/error-%DATE%.log',
-      datePattern: 'YYYY-MM-DD',
-      level: 'error',
-      maxFiles: '14d',
-      maxSize: '20m',
-      zippedArchive: true,
-    }),
-    // Combined logs with rotation
-    new DailyRotateFile({
-      filename: 'logs/combined-%DATE%.log',
-      datePattern: 'YYYY-MM-DD',
-      maxFiles: '14d',
-      maxSize: '20m',
-      zippedArchive: true,
+    // Use console logging by default
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.simple()
+      )
     })
   ]
 });
 
-// For development, also log to console
-if (process.env.NODE_ENV !== 'production') {
-  logger.add(new winston.transports.Console({
-    format: winston.format.combine(
-      winston.format.colorize(),
-      winston.format.simple()
-    )
+// Add file rotation only if not on Vercel and in production/other environments
+if (!process.env.VERCEL && (process.env.NODE_ENV === 'production' || process.env.ENABLE_FILE_LOGGING === 'true')) {
+  logger.add(new DailyRotateFile({
+    filename: 'logs/error-%DATE%.log',
+    datePattern: 'YYYY-MM-DD',
+    level: 'error',
+    maxFiles: '14d',
+    maxSize: '20m',
+    zippedArchive: true,
   }));
+  
+  logger.add(new DailyRotateFile({
+    filename: 'logs/combined-%DATE%.log',
+    datePattern: 'YYYY-MM-DD',
+    maxFiles: '14d',
+    maxSize: '20m',
+    zippedArchive: true,
+  }));
+}
+
+// Keep the previous dev console logic as a fallback if needed, or refine it
+if (process.env.NODE_ENV === 'development' && !process.env.VERCEL) {
+  // Already added one console transport, so we can adjust it or leave it
 }
 
 export default logger;

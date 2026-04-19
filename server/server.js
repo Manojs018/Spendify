@@ -99,6 +99,22 @@ const limiter = rateLimit({
 
 app.use('/api/', limiter);
 
+// Database middleware to ensure connection is ready for each API call (Production/Vercel only)
+if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
+    app.use('/api', async (req, res, next) => {
+        try {
+            await connectDB();
+            next();
+        } catch (error) {
+            logger.error('Database connection failed during request:', { error: error.message });
+            res.status(503).json({
+                success: false,
+                message: 'Service temporarily unavailable. Database connection issue.',
+            });
+        }
+    });
+}
+
 // Health check endpoint
 app.get('/health', (req, res) => {
     res.status(200).json({
@@ -173,8 +189,10 @@ const startServer = async () => {
             await initRedis();
         }
 
-        // Start Cron Jobs
-        startCronJobs();
+        // Start Cron Jobs (Only if not on Vercel)
+        if (!process.env.VERCEL) {
+           startCronJobs();
+        }
 
         // Only listen if not being imported (e.g. not on Vercel)
         if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {

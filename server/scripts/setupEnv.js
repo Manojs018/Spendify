@@ -11,6 +11,12 @@ const envExamplePath = path.join(rootDir, '.env.example');
 
 console.log('Checking environment configuration...');
 
+// Skip auto-generation on Vercel
+if (process.env.VERCEL) {
+    console.log('Vercel environment detected. Skipping .env auto-generation to prioritize Dashboard variables.');
+    process.exit(0);
+}
+
 if (!fs.existsSync(envPath)) {
     if (fs.existsSync(envExamplePath)) {
         console.log('.env file not found. Creating from .env.example...');
