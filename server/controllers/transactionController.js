@@ -2,6 +2,7 @@ import Transaction from '../models/Transaction.js';
 import RecurringTransaction from '../models/RecurringTransaction.js';
 import User from '../models/User.js';
 import { getNextDate } from '../utils/dateUtils.js';
+import { convertCurrency } from '../services/currencyService.js';
 import {
     escapeRegex,
     validateTransactionBody,
@@ -30,6 +31,10 @@ export const getTransactions = async (req, res) => {
             month,
             year,
             search,
+            startDate,
+            endDate,
+            minAmount,
+            maxAmount,
             page = 1,
             limit = 10,
             sort = '-date',
@@ -46,8 +51,6 @@ export const getTransactions = async (req, res) => {
         }
 
         // ── Safe pagination  ────────────────────────────────────────────────
-        // validateTransactionQuery() above already rejected page<1 and limit>100,
-        // so all values here are guaranteed to be valid — no further clamping needed.
         const pageNum = parseInt(page, 10) || 1;
         const limitNum = parseInt(limit, 10) || 10;
 
@@ -57,33 +60,67 @@ export const getTransactions = async (req, res) => {
         // ── Build query ────────────────────────────────────────────────────
         const query = { userId: req.user.id };
 
-        // Filter by type – already validated to be 'income' or 'expense'
+        // Filter by type
         if (type && ['income', 'expense'].includes(type)) {
             query.type = type;
         }
 
-        // Filter by category – escape user input before building RegExp (ReDoS fix)
+        // Filter by category
         if (category && typeof category === 'string') {
             query.category = new RegExp(escapeRegex(category.trim()), 'i');
         }
 
-        // Filter by month and year – parsed as real integers
-        if (month && year) {
+        // Filter by month/year (existing) OR startDate/endDate (new)
+        if (startDate || endDate) {
+            query.date = {};
+            if (startDate) {
+                const sd = new Date(startDate);
+                if (!isNaN(sd.getTime())) query.date.$gte = sd;
+            }
+            if (endDate) {
+                const ed = new Date(endDate);
+                if (!isNaN(ed.getTime())) {
+                    ed.setHours(23, 59, 59, 999);
+                    query.date.$lte = ed;
+                }
+            }
+        } else if (month && year) {
             const m = parseInt(month, 10);
             const y = parseInt(year, 10);
-            const startDate = new Date(y, m - 1, 1);
-            const endDate = new Date(y, m, 0, 23, 59, 59);
-            query.date = { $gte: startDate, $lte: endDate };
+            const startD = new Date(y, m - 1, 1);
+            const endD = new Date(y, m, 0, 23, 59, 59);
+            query.date = { $gte: startD, $lte: endD };
         } else if (year) {
             const y = parseInt(year, 10);
-            const startDate = new Date(y, 0, 1);
-            const endDate = new Date(y, 11, 31, 23, 59, 59);
-            query.date = { $gte: startDate, $lte: endDate };
+            const startD = new Date(y, 0, 1);
+            const endD = new Date(y, 11, 31, 23, 59, 59);
+            query.date = { $gte: startD, $lte: endD };
         }
 
-        // Search in description – escape user input before building RegExp (ReDoS fix)
+        // Amount range filter
+        if (minAmount !== undefined || maxAmount !== undefined) {
+            query.amount = {};
+            if (minAmount !== undefined) {
+                const mn = parseFloat(minAmount);
+                if (!isNaN(mn) && mn >= 0) query.amount.$gte = mn;
+            }
+            if (maxAmount !== undefined) {
+                const mx = parseFloat(maxAmount);
+                if (!isNaN(mx) && mx >= 0) query.amount.$lte = mx;
+            }
+        }
+
+        // Search in description, category, OR amount (multi-field)
         if (search && typeof search === 'string') {
-            query.description = new RegExp(escapeRegex(search.trim()), 'i');
+            const safeSearch = escapeRegex(search.trim());
+            const searchRegex = new RegExp(safeSearch, 'i');
+            query.$or = [
+                { description: searchRegex },
+                { category: searchRegex },
+                { $expr: { $regexMatch: { input: { $convert: { input: "$amount", to: "string", onError: "", onNull: "" } }, regex: safeSearch, options: 'i' } } }
+            ];
+            // Remove individual category filter if search is active (avoids conflict)
+            delete query.category;
         }
 
         // ── Execute query with safe pagination ────────────────────────────
@@ -110,6 +147,7 @@ export const getTransactions = async (req, res) => {
         });
     }
 };
+
 
 // @desc    Export transactions to CSV
 // @route   GET /api/transactions/export
@@ -153,7 +191,14 @@ export const exportTransactions = async (req, res) => {
         }
 
         if (search && typeof search === 'string') {
-            query.description = new RegExp(escapeRegex(search.trim()), 'i');
+            const safeSearch = escapeRegex(search.trim());
+            const searchRegex = new RegExp(safeSearch, 'i');
+            query.$or = [
+                { description: searchRegex },
+                { category: searchRegex },
+                { $expr: { $regexMatch: { input: { $convert: { input: "$amount", to: "string", onError: "", onNull: "" } }, regex: safeSearch, options: 'i' } } }
+            ];
+            delete query.category;
         }
 
         // Fetch all matching data without pagination
@@ -228,7 +273,7 @@ export const getTransaction = async (req, res) => {
 // @access  Private
 export const createTransaction = async (req, res) => {
     try {
-        const { amount, type, category, description, date, isRecurring, recurringFrequency } = req.body;
+        const { amount, currency, type, category, description, date, isRecurring, recurringFrequency } = req.body;
 
         // ── Validate input ─────────────────────────────────────────────────
         const validationErrors = validateTransactionBody({ amount, type, category, description, date });
@@ -240,18 +285,28 @@ export const createTransaction = async (req, res) => {
             });
         }
 
+        // ── Fetch user to get base currency ────────────────────────────────
+        const currentUser = await User.findById(req.user.id);
+        if (!currentUser) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
         // ── Sanitize string fields (XSS already stripped by middleware) ────
         const safeDescription = description ? stripXSS(description.trim()) : undefined;
         const safeCategory = stripXSS(category.trim());
         const safeAmount = parseFloat(amount);
+        const txCurrency = (currency || currentUser.baseCurrency || 'USD').toUpperCase();
+
+        // ── Calculate Base Standardized Amount ─────────────────────────────
+        const baseAmount = await convertCurrency(safeAmount, txCurrency, currentUser.baseCurrency);
 
         // ── Insufficient-funds check for expense transactions ──────────────
         if (type === 'expense') {
-            // Atomic conditional update: only deducts if balance >= safeAmount
+            // Atomic conditional update: only deducts if balance >= baseAmount
             // This prevents race conditions (no separate read-then-write)
             const updatedUser = await User.findOneAndUpdate(
-                { _id: req.user.id, balance: { $gte: safeAmount } },
-                { $inc: { balance: -safeAmount } },
+                { _id: req.user.id, balance: { $gte: baseAmount } },
+                { $inc: { balance: -baseAmount } },
                 { new: true }
             );
 
@@ -272,6 +327,8 @@ export const createTransaction = async (req, res) => {
             const transaction = await Transaction.create({
                 userId: req.user.id,
                 amount: safeAmount,
+                currency: txCurrency,
+                baseAmount: Math.round(baseAmount * 100) / 100, // round down cleanly
                 type,
                 category: safeCategory,
                 description: safeDescription,
@@ -280,7 +337,7 @@ export const createTransaction = async (req, res) => {
 
             // Rollback balance if transaction creation fails (rare, defensive)
             if (!transaction) {
-                await User.findByIdAndUpdate(req.user.id, { $inc: { balance: safeAmount } });
+                await User.findByIdAndUpdate(req.user.id, { $inc: { balance: baseAmount } });
                 return res.status(500).json({ success: false, message: 'Failed to record transaction' });
             }
 
@@ -310,6 +367,8 @@ export const createTransaction = async (req, res) => {
         const transaction = await Transaction.create({
             userId: req.user.id,
             amount: safeAmount,
+            currency: txCurrency,
+            baseAmount: Math.round(baseAmount * 100) / 100,
             type,
             category: safeCategory,
             description: safeDescription,
@@ -332,7 +391,7 @@ export const createTransaction = async (req, res) => {
 
         const updatedUser = await User.findByIdAndUpdate(
             req.user.id,
-            { $inc: { balance: safeAmount } },
+            { $inc: { balance: baseAmount } },
             { new: true }
         );
 
@@ -384,6 +443,7 @@ export const updateTransaction = async (req, res) => {
         // ── Validate only the supplied fields ─────────────────────────────
         const {
             amount = transaction.amount,
+            currency = transaction.currency,
             type = transaction.type,
             category = transaction.category,
             description,
@@ -412,12 +472,17 @@ export const updateTransaction = async (req, res) => {
             ? stripXSS(String(description).trim())
             : transaction.description;
 
+        const currentUser = await User.findById(req.user.id);
+        const txCurrency = (currency || currentUser.baseCurrency || 'USD').toUpperCase();
+        const baseAmountRaw = await convertCurrency(safeAmount, txCurrency, currentUser.baseCurrency);
+        const newBaseAmount = Math.round(baseAmountRaw * 100) / 100;
+
         // ── Calculate how balance would change ────────────────────────────
         const oldType = transaction.type;
-        const oldAmount = transaction.amount;
-        const revertValue = oldType === 'income' ? -oldAmount : oldAmount;   // undo old
-        const applyValue = type === 'income' ? safeAmount : -safeAmount; // apply new
-        const netChange = revertValue + applyValue;
+        const oldBaseAmount = transaction.baseAmount || transaction.amount;
+        const revertValue = oldType === 'income' ? -oldBaseAmount : oldBaseAmount;   // undo old
+        const applyValue = type === 'income' ? newBaseAmount : -newBaseAmount; // apply new
+        const netChange = Math.round((revertValue + applyValue) * 100) / 100;
 
         // ── Guard: net change must not push balance below 0 ───────────────
         if (netChange < 0) {
@@ -442,7 +507,7 @@ export const updateTransaction = async (req, res) => {
 
             // Update the transaction record
             transaction = await Transaction.findByIdAndUpdate(req.params.id, {
-                amount: safeAmount, type, category: safeCategory, description: safeDescription,
+                amount: safeAmount, currency: txCurrency, baseAmount: newBaseAmount, type, category: safeCategory, description: safeDescription,
                 ...(date !== undefined ? { date: new Date(date) } : {}),
             }, { new: true, runValidators: true });
 
@@ -470,7 +535,7 @@ export const updateTransaction = async (req, res) => {
         }
 
         const updateData = {
-            amount: safeAmount, type, category: safeCategory, description: safeDescription,
+            amount: safeAmount, currency: txCurrency, baseAmount: newBaseAmount, type, category: safeCategory, description: safeDescription,
         };
         if (date !== undefined) updateData.date = new Date(date);
 
@@ -522,12 +587,13 @@ export const deleteTransaction = async (req, res) => {
         // ── Revert the balance effect of this transaction ─────────────────
         // Reverting an income = subtract (could go negative if other expenses consumed it)
         // Reverting an expense = add back (always safe)
-        const revertValue = transaction.type === 'income' ? -transaction.amount : transaction.amount;
+        const oldBaseAmount = transaction.baseAmount || transaction.amount;
+        const revertValue = transaction.type === 'income' ? -oldBaseAmount : oldBaseAmount;
 
         if (revertValue < 0) {
             // Reverting income: guard against going negative atomically
             const updatedUser = await User.findOneAndUpdate(
-                { _id: req.user.id, balance: { $gte: transaction.amount } },
+                { _id: req.user.id, balance: { $gte: oldBaseAmount } },
                 { $inc: { balance: revertValue } },
                 { new: true }
             );
