@@ -10,10 +10,13 @@ export const csrfProtection = (req, res, next) => {
     // 2. Bypass CSRF for specific routes:
     //    - Google OAuth routes (server-to-server)
     //    - Login & Registration (standard for pre-auth routes to avoid session hurdles)
+    //    - Auth sub-routes protected by JWT (no need for double CSRF protection)
     const bypassRoutes = [
         '/api/auth/google',
         '/api/auth/login',
-        '/api/auth/register'
+        '/api/auth/register',
+        '/api/auth/refresh',
+        '/api/auth/me',
     ];
 
     if (bypassRoutes.some(route => req.path.startsWith(route))) {
