@@ -29,6 +29,11 @@ import budgetRoutes from './routes/budgetRoutes.js';
 // Load env vars
 dotenv.config();
 
+// Graceful check for critical environment variables
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+    logger.error('⚠️ CRITICAL: JWT_SECRET is missing from environment variables. Authentication will fail.');
+}
+
 const app = express();
 
 // Trust proxy to ensure correct IP routing in deployments
