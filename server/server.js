@@ -154,45 +154,55 @@ Sentry.setupExpressErrorHandler(app);
 // Error handler (must be last)
 app.use(errorHandler);
 
+export default app;
+
 const PORT = process.env.PORT || 5000;
 let server;
 
 // Start server
 const startServer = async () => {
     try {
-        // Initialize Redis
-        await initRedis();
+        // Only initialize Redis if connection string exists
+        if (process.env.REDIS_URL || process.env.REDIS_HOST) {
+            await initRedis();
+        }
 
         // Start Cron Jobs
         startCronJobs();
 
-        server = app.listen(PORT, () => {
-            logger.info('\n╔═══════════════════════════════════════════════════════╗');
-            logger.info('║                                                       ║');
-            logger.info('║              🟦 SPENDIFY API SERVER                   ║');
-            logger.info('║        Smart Spending. Clear Insights.                ║');
-            logger.info('║                                                       ║');
-            logger.info(`║  🚀 Server running on port ${PORT}                      ║`);
-            logger.info(`║  🌍 Environment: ${process.env.NODE_ENV}                        ║`);
-            logger.info(`║  📡 API: http://localhost:${PORT}                       ║`);
-            logger.info('║                                                       ║');
-            logger.info('╚═══════════════════════════════════════════════════════╝\n');
-        });
+        // Only listen if not being imported (e.g. not on Vercel)
+        if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+            server = app.listen(PORT, () => {
+                logger.info('\n╔═══════════════════════════════════════════════════════╗');
+                logger.info('║                                                       ║');
+                logger.info('║              🟦 SPENDIFY API SERVER                   ║');
+                logger.info('║        Smart Spending. Clear Insights.                ║');
+                logger.info('║                                                       ║');
+                logger.info(`║  🚀 Server running on port ${PORT}                      ║`);
+                logger.info(`║  🌍 Environment: ${process.env.NODE_ENV}                        ║`);
+                logger.info(`║  📡 API: http://localhost:${PORT}                       ║`);
+                logger.info('║                                                       ║');
+                logger.info('╚═══════════════════════════════════════════════════════╝\n');
+            });
+        }
     } catch (error) {
         logger.error('❌ Failed to start server:', error);
-        process.exit(1);
+        // Don't exit on Vercel
+        if (!process.env.VERCEL) process.exit(1);
     }
 };
 
 startServer();
 
 // Handle unhandled promise rejections
-process.on('unhandledRejection', (err, promise) => {
-    logger.error(`❌ Unhandled Rejection Error: ${err.message}`, { error: err });
-    // Close server & exit process
-    if (server) {
-        server.close(() => process.exit(1));
-    } else {
-        process.exit(1);
-    }
-});
+if (!process.env.VERCEL) {
+    process.on('unhandledRejection', (err, promise) => {
+        logger.error(`❌ Unhandled Rejection Error: ${err.message}`, { error: err });
+        // Close server & exit process
+        if (server) {
+            server.close(() => process.exit(1));
+        } else {
+            process.exit(1);
+        }
+    });
+}
