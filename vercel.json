@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "name": "spendify",
+  "builds": [
+    {
+      "src": "server/server.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "client/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "server/server.js",
+      "check": true
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/client/$1",
+      "check": true
+    },
+    {
+      "src": "/(.*)",
+      "status": 404,
+      "dest": "/client/index.html"
+    }
+  ]
+}
