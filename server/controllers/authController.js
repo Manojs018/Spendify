@@ -179,8 +179,17 @@ export const login = async (req, res) => {
             },
         });
     } catch (error) {
-        console.error('Login Error:', error);
-        return res.status(500).json({ success: false, message: 'Server error during login' });
+        console.error('Login Error details:', error);
+        
+        // Provide more context if it's a known environment issue
+        if (error.message && error.message.includes('secretOrPrivateKey')) {
+            logger.error('CRITICAL ERROR: JWT_SECRET is missing or invalid in environment variables.');
+        }
+
+        return res.status(500).json({ 
+            success: false, 
+            message: 'Server error during login. Please check server logs or environment variables.' 
+        });
     }
 };
 
