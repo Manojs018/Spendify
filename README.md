@@ -128,11 +128,6 @@ The app should now be running at `http://localhost:5000` (or `http://localhost:3
 
 ---
 
-## 📸 Screenshots
-*(Add your screenshots here)*
-| Dashboard | Transactions | Analytics |
-| :---: | :---: | :---: |
-| ![Dashboard UI](./assets/dashboard.png) | ![Transaction Placeholder](https://via.placeholder.com/300x200?text=Transactions+UI) | ![Analytics Placeholder](https://via.placeholder.com/300x200?text=Analytics+UI) |
 
 ---
 
@@ -144,10 +139,7 @@ The app should now be running at `http://localhost:5000` (or `http://localhost:3
 
 ---
 
-## 👨‍💻 Author
-**Manoj S**
-- GitHub: [@Manojs018](https://github.com/Manojs018)
-- LinkedIn: [Your Profile](https://linkedin.com/in/yourprofile)
+
 
 ---
 
@@ -155,4 +147,4 @@ The app should now be running at `http://localhost:5000` (or `http://localhost:3
 This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
 ---
-*Developed with ❤️ by Manoj S*
+
