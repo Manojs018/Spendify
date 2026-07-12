@@ -2,12 +2,11 @@
 
 Spendify is a comprehensive, full-stack personal finance and expense tracking application designed to help you take control of your financial life. With a sleek, modern UI and powerful backend analytics, Spendify makes it easy to track daily expenses, manage multiple cards, and gain valuable insights into your spending habits.
 
-![Spendify Dashboard](./assets/dashboard.png)
+
 
 ---
 
-## 🚀 Live Demo
-[Check out Spendify Live](https://spendify-demo.example.com) *(Placeholder)*
+
 
 ---
 
